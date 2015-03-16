@@ -1,3 +1,4 @@
+from requests.api import post
 class BayEOSSender():
 	"""
 	Constructor for BayEOS-Sender
@@ -13,10 +14,32 @@ class BayEOSSender():
 	def __init__(self, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1,9'):
 		pass
 	
-	"""number of post requests"""
+	"""
+	keeps sending as long as all files are send or an error occures
+	@return int
+	number of post requests
+	"""
 	def send(self):
-		pass
+		count = 0
+		while(post == self.sendFile()):
+			count += post
+		return(count)
 	
+	"""
+	read one file from the queue and try to send it to the gateway
+	on success file is deleted or renamed to *.bak
+	takes always the oldest file
+	"""
+	def sendFile(self):
+		pass
+		#chdir(self.path)
+		
+	"""
+	@param data
+	@return success
+	"""
+	def post(self, data):
+		
 	
 	
 	
