@@ -1,4 +1,4 @@
-from _struct import pack
+from struct import *
 from _dbus_bindings import Array
 from mutagen.id3._frames import Frame
 class BayEOS():
@@ -10,18 +10,23 @@ class BayEOS():
 	@return string (binary)
 	"""
 	def createDataFrame(self, values, type=0x1, offset=0):
-		bayeosFrame = pack("C2", 0x1)
-		# Extract offset and data type
-		offsetType = 0xf0 & type
-		dataType = 0x0f & type
-		if offsetType == 0x0:
-			# simple offset frame
-			bayeosFrame += pack("C", offset)
-		for (key, value) in values:
-			if offsetType == 0x04:
-				# Offset-value frame
-				bayeosFrame += pack("C", key)
-			#switch(dataType): 
+		bayeosFrame = pack('bb', 0x1, type)
+     	# print('Frame start: ', bayeosFrame)
+      	offsetType = (0xf0 & type)
+      	# print('Offset type: ', offsetType)
+       	dataType = (0x0f & type)
+       	# print('Data type: ', dataType)    
+    	if offsetType == 0x0:
+       	 	bayeosFrame += pack('b', offset)
+         	# print('Frame with offset: ', bayeosFrame)
+        
+    	for each_value in values:
+        	bayeosFrame += pack('f', each_value)
+         	print(each_value)
+    
+      	print('Frame created: ', bayeosFrame)
+       	print('Frame unpacked: ', unpack('=bbbff', bayeosFrame))
+    	return(bayeosFrame)
 			
 	"""
 	parse a binary BayEOS frame into a Python Array
