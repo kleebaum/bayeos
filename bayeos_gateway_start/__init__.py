@@ -3,11 +3,11 @@ from struct import *
 
 def main():
     saveDataFrame([2, 40, 3, 50])
-#     f = open ('/tmp/bayeos-device1/1426518299-0.47623200.act', 'rb')
-#     zeile = f.readline()
-#     print(len(zeile))
-#     print(zeile)
-#     print('Frame with header: ', toString(zeile, True))
-#     f.close()
+    f = open ('/home/anja/tmp/bayeos-device1/1426779597-0.50015300.act', 'rb')
+    zeile = f.readline()
+    print(len(zeile))
+    print(zeile)
+    print('Frame with header: ', toString(zeile, True))
+    f.close()
 main()    
     
