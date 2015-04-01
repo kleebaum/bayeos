@@ -3,6 +3,7 @@ import pycurl
 import time
 import urllib.parse
 import base64
+from io import BytesIO
 
 """ First writer methods """
 
@@ -34,7 +35,7 @@ def saveDataFrame(values, type=0x1, offset=0, ts=0):
     # print('Frame length (decimal): ', len(bayeosFrame))
     # print('Frame length (binary): ', bayeosFrameHeaderLength)
     bayeosWriterFrame = bayeosFrameHeaderTs + bayeosFrameHeaderLength + bayeosFrame
-    currentName = tmpDir + '/'+ str(time.time()) + '.rd'
+    currentName = tmpDir + '/' + str(time.time()) + '.rd'
     print('File created: ', currentName)
     f = open(currentName, 'wb')    
     f.write(bayeosWriterFrame)
@@ -60,11 +61,14 @@ def toString(bayeosFrame, header=False):
     return(unpack(fmt, bayeosFrame))
 
 def sendFile(ts, length, data):
-    name = 'Python-Test-Device'
+    name = 'PythonTestDevice'
     pw = 'xbee'
-    gatewayVersion = '1.9'
+    #gatewayVersion = '1.9'
+
     curl = pycurl.Curl()
     curl.setopt(pycurl.POST, 1)
+    
+    curl.setopt(pycurl.VERBOSE, 1)
     curl.setopt(pycurl.TIMEOUT, 120)
     curl.setopt(pycurl.CONNECTTIMEOUT, 30)
     curl.setopt(pycurl.HEADER, 1)
@@ -72,31 +76,16 @@ def sendFile(ts, length, data):
     curl.setopt(pycurl.NOBODY, 1)
     curl.setopt(pycurl.URL, 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat')
     curl.setopt(pycurl.USERPWD, 'admin:xbee')
-    print(pack('Q',round(unpack('=d', ts)[0]*1000)))
-    ts = pack('Q',round(unpack('=d', ts)[0]*1000))
-    data = pack("b",0xc)+ts+data
-    print(data)
-    data2="sender="+urllib.parse.quote_plus(name)+"&password="+urllib.parse.quote_plus(pw)+"&bayeosframes[]="+urllib.parse.quote_plus(str(base64.standard_b64encode(data)))
-    print(data2)
-    curl.setopt(pycurl.POSTFIELDS, data2)
-    #curl.setopt(pycurl.RETURNTRANSFER, 1)
-    curl.perform()
-    
-#     $tmp=fread($fp,$size_of_double);
-#             if(strlen($tmp)==0) break;
-#             $tmp=unpack('d',$tmp);
-#             $ts=$tmp[1];
-#             $tmp=unpack('s',fread($fp,$size_of_short));
-#             $length=$tmp[1];
-#             $bayeos_frame=fread($fp,$length);
-#             if($bayeos_frame){
-#                 $count++;
-#                 if($this->absolute_time){
-#                     if($this->gateway_version=='1.8') $bayeos_frame=pack("C",0x9).BayEOSType::UINT32(round($ts-$ref)).$bayeos_frame;
-#                     else $bayeos_frame=pack("C",0xc).BayEOSType::UINT64(round($ts*1000)).$bayeos_frame;
-#                 }else
-#                     $bayeos_frame=pack("C",0x7).BayEOSType::UINT32(round((microtime(TRUE)-$ts)*1000)).$bayeos_frame;
-#                 $frames.="&bayeosframes[]=".($this->gateway_version=='1.8'?
-#                         base64_encode($bayeos_frame):urlencode(base64_encode($bayeos_frame)));
-#             }
 
+    ts = pack('Q', round(unpack('=d', ts)[0] * 1000))
+    data = pack("b", 0xc) + ts + data
+
+    postFields = [('sender', urllib.parse.quote_plus(name)),
+      ('password', urllib.parse.quote_plus(pw)),
+      ('bayeosframes[]', base64.urlsafe_b64encode(data))
+      ]
+    curl.setopt(pycurl.HTTPPOST, postFields)
+    curl.perform()
+    #print('Status ', curl.getinfo(curl.HTTP_CODE))
+    #print('Zeit ', curl.getinfo(curl.TOTAL_TIME))
+    curl.close()
