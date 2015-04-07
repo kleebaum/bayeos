@@ -1,8 +1,10 @@
 '''creates an example sender'''
 
-import bayeosSender
 from array import array
 from time import sleep
+
+import bayeosSender
+
 
 def main():
     sender = bayeosSender.BayEOSSender('/tmp/bayeos-device1',

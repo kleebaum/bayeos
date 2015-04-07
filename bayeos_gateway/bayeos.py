@@ -1,6 +1,9 @@
 from struct import *
+
 from _dbus_bindings import Array
 from mutagen.id3._frames import Frame
+
+
 class BayEOS():
 	"""
 	create BayEOS data frame

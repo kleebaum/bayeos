@@ -1,4 +1,6 @@
 from requests.api import post
+
+
 class BayEOSSender():
 	"""
 	Constructor for BayEOS-Sender

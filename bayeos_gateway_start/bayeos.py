@@ -1,13 +1,19 @@
-from struct import *
-import pycurl
-import time
-import urllib.parse
+""" First writer methods """
+""" creates a new BayEOS data frame including values given as a list """
+
 import base64
 from io import BytesIO
+from struct import *
+import time
+import urllib, urllib2
 
-""" First writer methods """
+import pycurl
+# try:
+#     import urllib.request as urllib2
+# except ImportError:
+#     import urllib2
 
-""" creates a new BayEOS data frame including values given as a list """
+
 def createDataFrame(values, type=0x1, offset=0):
     bayeosFrame = pack('bb', 0x1, type)
     # print('Frame start: ', bayeosFrame)
@@ -62,6 +68,34 @@ def toString(bayeosFrame, header=False):
 
 def sendFile(ts, length, data):
     name = 'PythonTestDevice'
+
+    url = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+    
+    ts = pack('Q', round(unpack('=d', ts)[0] * 1000))
+    data = pack("b", 0xc) + ts + data
+    postFields = '&sender=' + urllib.quote_plus(name) + '&bayeosframes[]=' + base64.urlsafe_b64encode(data)
+    
+    username = "admin"
+    password = "xbee"
+
+    password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+    password_mgr.add_password(None, url, username, password)
+    handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+    opener = urllib2.build_opener(handler)
+    req = urllib2.Request(url, postFields)
+    req.add_header('Accept', 'text/html')
+    req.add_header('User-Agent', 'BayEOS-PHP/1.0.8')
+    f = opener.open(req)
+
+    if f:
+        print "Update OK!"
+    else:
+        print "Error updating..."
+        
+    print(f.info())
+    
+def sendFilePycurl(ts, length, data):
+    name = 'PythonTestDevice'
     pw = 'xbee'
     #gatewayVersion = '1.9'
 
@@ -80,8 +114,8 @@ def sendFile(ts, length, data):
     ts = pack('Q', round(unpack('=d', ts)[0] * 1000))
     data = pack("b", 0xc) + ts + data
 
-    postFields = [('sender', urllib.parse.quote_plus(name)),
-      ('password', urllib.parse.quote_plus(pw)),
+    postFields = [('sender', urllib.quote_plus(name)),
+      ('password', urllib.quote_plus(pw)),
       ('bayeosframes[]', base64.urlsafe_b64encode(data))
       ]
     curl.setopt(pycurl.HTTPPOST, postFields)

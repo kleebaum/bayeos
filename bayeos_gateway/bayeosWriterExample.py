@@ -1,8 +1,10 @@
 '''creates an example writer'''
 
-import bayeosWriter
 from array import array
 from time import sleep
+
+import bayeosWriter
+
 
 def main():
     tmpDir = '/tmp'

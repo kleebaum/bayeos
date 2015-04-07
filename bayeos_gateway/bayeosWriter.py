@@ -1,7 +1,9 @@
 from os.path import isdir
-from posix import mkdir, chdir, rename
 from pathlib import Path
+from posix import mkdir, chdir, rename
+
 from bayeos import BayEOS
+
 
 class BayEOSWriter():
     """
