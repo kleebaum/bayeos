@@ -1,6 +1,8 @@
 from os.path import isdir
-from pathlib import Path
+import glob
 from posix import mkdir, chdir, rename
+import time
+from struct import *
 
 from bayeos import BayEOS
 
@@ -21,11 +23,11 @@ class BayEOSWriter():
                 exit("Could not create ", self.path)
                 
         chdir(self.path)
-        files = Path.glob('*')
+        files = glob.glob('*')
         last = files[-1]
-        if str.find(last, '$', '.act$'):
+        #if str.find(last, '$', '.act$'):
             # Found active file -- unexpected shutdown
-            rename(last, str.replace('.act', '.rd', last))
+        #    rename(last, str.replace('.act', '.rd', last))
         #self.startNewFile
         
     """
@@ -35,8 +37,8 @@ class BayEOSWriter():
     @param offset: offset parameter for BayEOS data frames (relevant for some types)
     @param ts: Unix epoch time stamp, if zero system time is used
     """
-    def saveDataFrame(self, values, type=0x1, offset=0, ts=0):
-        self.saveFrame(BayEOS.createDataFrame(), ts)
+    def saveDataFrame(self, values, valueType=0x1, offset=0, ts=0):
+        self.saveFrame(BayEOS.createDataFrame(BayEOS(), values, valueType, offset), ts)
 
     """
     save origin frame
@@ -81,6 +83,19 @@ class BayEOSWriter():
     """
     def saveFrame(self, frame, ts=0):
         if not ts:
-            ts = 0
+            ts = time.time()
+        frameTs = pack('d', ts)
+        frameLength = pack('h', len(frame))
+        timestampFrame = frameTs + frameLength + frame
+        currentName = self.path + '/' + str(time.time()) + '.rd'
+        print('File created: ', currentName)
+        f = open(currentName, 'wb')    
+        f.write(timestampFrame)
+        if(time.time() > self.maxTime):
+            f.close()
+            
+    #sendFile(bayeosFrameHeaderTs, bayeosFrameHeaderLength, bayeosFrame)
+    # print('Frame with header (binary): ', bayeosWriterFrame)
+    #print('Frame with header (decimal): ', toString(bayeosWriterFrame, header=True))
     
     

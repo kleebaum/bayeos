@@ -24,10 +24,22 @@ def createDataFrame(values, type=0x1, offset=0):
     if offsetType == 0x0:
         bayeosFrame += pack('b', offset)
         # print('Frame with offset: ', bayeosFrame)        
-    for each_value in values:
-        bayeosFrame += pack('f', each_value)
-    # print('Value frame created: ', bayeosFrame)
+    for [key, each_value] in values:
+        if offsetType == 0x40:  # Data frame with channel indices
+            bayeosFrame += pack('b', key)
+        if dataType == 0x1:     # float32 4 bytes
+            bayeosFrame += pack('f', each_value)
+        elif dataType == 0x2:   # int32 4 bytes
+            bayeosFrame += pack('i', each_value)   
+        elif dataType == 0x3:   # int16 2 bytes
+            bayeosFrame += pack('h', each_value)  
+        elif dataType == 0x4:   # int8 1 byte
+            bayeosFrame += pack('b', each_value)  
+        elif dataType == 0x5:   # double 8 bytes
+            bayeosFrame += pack('d', each_value)                  
+    # print('Data frame created: ', bayeosFrame)
     return(bayeosFrame)
+
     
 """ writes a data frame to file according to a time stamp """
 def saveDataFrame(values, type=0x1, offset=0, ts=0):
@@ -48,7 +60,7 @@ def saveDataFrame(values, type=0x1, offset=0, ts=0):
     f.close()
     sendFile(bayeosFrameHeaderTs, bayeosFrameHeaderLength, bayeosFrame)
     # print('Frame with header (binary): ', bayeosWriterFrame)
-    print('Frame with header (decimal): ', toString(bayeosWriterFrame, header=True))
+    #print('Frame with header (decimal): ', toString(bayeosWriterFrame, header=True))
 
 """ unpacks the BayEOS data frame """
 def toString(bayeosFrame, header=False):
