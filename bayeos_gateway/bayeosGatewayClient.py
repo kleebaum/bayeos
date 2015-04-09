@@ -4,11 +4,12 @@ import os
 import time
 from struct import *
 import string
+import urllib, urllib2, base64
 
 from _dbus_bindings import Array
 from mutagen.id3._frames import Frame
 from requests.api import post
-
+from _sane import FRAME_BLUE
 
 class BayEOS():
     def createDataFrame(self, values, valueType=0x1, offset=0):
@@ -19,16 +20,16 @@ class BayEOS():
         @param offset: length of Channel Offset (if Offset Type is 0x0)
         @return Data Frame as a binary string
         """
-        frame = pack('bb', 0x1, valueType)     # 0x1 represents data frame 
+        frame = pack('bb', 0x1, valueType)          # 0x1 represents data frame 
         offsetType = (0xf0 & valueType)             # first four bits of frame type
-        dataType = (0x0f & valueType)                 # last four bits of frame type    
-        if offsetType == 0x0:                        # data frame with channel offset
-                frame += pack('b', offset)         # 1 byte channel offset
+        dataType = (0x0f & valueType)               # last four bits of frame type    
+        if offsetType == 0x0:                       # data frame with channel offset
+                frame += pack('b', offset)          # 1 byte channel offset
         
         for [key, each_value] in values:
             if offsetType == 0x40:                  # data frame with channel indices
                 frame += pack('b', key)
-            if dataType == 0x1:                         # float32 4 bytes
+            if dataType == 0x1:                     # float32 4 bytes
                 frame += pack('f', each_value)
             elif dataType == 0x2:                   # int32 4 bytes
                 frame += pack('i', each_value)   
@@ -73,16 +74,16 @@ class BayEOSWriter():
         self.maxChunk = maxChunk
         self.maxTime = maxTime
         if not os.path.isdir(self.path):
-            print("try to create new folder")
-            os.mkdir(self.path)
+            #print("try to create new folder")
+            os.mkdir(self.path, 0700)
               #  exit("Could not create " + self.path)
                 
         chdir(self.path)
         files = glob.glob('*')
         for eachFile in files:
-            print("found file in folder")
+            #print("found file in folder")
             if string.find(eachFile, '.act'):    # Found active file -- unexpected shutdown
-                print("found active file")
+                #print("found active file")
                 rename(eachFile, eachFile.replace('.act', '.rd'))
         self.startNewFile()
         
@@ -106,100 +107,140 @@ class BayEOSWriter():
         origin = origin[0:255]
         self.saveFrame(frame, ts)
     
-    """
-    save routed frame RSSI
-    @param myId: TX-XBee MyId
-    @param panId: XBee PANID
-    @param rssi: RSSI
-    @param frame: must be a valid BayEOS frame
-    @param ts: Unix epoch time stamp, if zero system time is used
-    """
+
     def saveRoutedFrameRSSI(self, myId, panId, rssi, frame, ts=0):
+        """
+        save routed frame RSSI
+        @param myId: TX-XBee MyId
+        @param panId: XBee PANID
+        @param rssi: RSSI
+        @param frame: must be a valid BayEOS frame
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
         self.saveFrame(frame, ts)
     
-    """
-    save message
-    @param sting: message to save
-    @param ts: Unix epoch time stamp, if zero system time is used
-    """
     def saveMessage(self,sting,ts=0):
+        """
+        save message
+        @param sting: message to save
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
         self.saveFrame(sting, ts)
         
-    """
-    save error message
-    @param sting: message to save
-    @param ts: Unix epoch time stamp, if zero system time is used
-    """
     def saveErrorMessage(self, sting, ts=0):
+        """
+        save error message
+        @param sting: message to save
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
         self.saveFrame(sting, ts)
         
 
     def saveFrame(self, frame, ts=0):
-        """save frame, base function
-        @param frame: must be a valid BayEOS frame
+        """Save Timestamp Frame to file. This is a base function.
+        @param frame: must be a valid BayEOS Frame
         @param ts: Unix epoch time stamp, if zero system time is used 
         """
         if not ts:
             ts = time.time()
-        frameTs = pack('d', ts)
-        frameLength = pack('h', len(frame))
-        timestampFrame = frameTs + frameLength + frame
-        #self.currentName = self.path + '/' + str(time.time()) + '.rd'
- 
-        self.fp.write(timestampFrame)
+        self.fp.write(pack('d', ts) + pack('h', len(frame)) + frame)
         if self.fp.tell() > self.maxChunk or time.time() - self.currentTs > self.maxTime:
             self.fp.close()
             rename(self.currentName + '.act', self.currentName + '.rd')
             self.startNewFile()
     
     def startNewFile(self):
+        """ Opens a new file with ending .act and determines current file name. """ 
         self.currentTs = time.time()
         [sec, usec] = string.split(str(self.currentTs), '.')
         self.currentName = sec + '-' + usec
         self.fp = open(self.currentName + '.act', 'wb')
         
 class BayEOSSender():
-    """
-    Constructor for BayEOS-Sender
-    @param path: path where BayEOSWriter puts files
-    @param name: sender name
-    @param url: gateway url e.g. http://<gateway>/gateway/frame/saveFlat
-    @param pw: password on gateway
-    @param user: user on gateway
-    @param absoluteTime: if set to false, relative time is used (delay)
-    @param rm: if set to false files are kept as .bak file in the BayEOSWriter directory
-    @param gatewayVersion: gateway version
-    """
-    def __init__(self, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1,9'):
-        pass
+    def __init__(self, path, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1.9'):
+        """
+        Constructor for BayEOSSender instance.
+        @param path: path where BayEOSWriter puts files
+        @param name: sender name
+        @param url: gateway url e.g. http://<gateway>/gateway/frame/saveFlat
+        @param pw: password on gateway
+        @param user: user on gateway
+        @param absoluteTime: if set to false, relative time is used (delay)
+        @param rm: if set to false files are kept as .bak file in the BayEOSWriter directory
+        @param gatewayVersion: gateway version
+        """
+#         try:
+#             urllib2.urlopen(url)
+#         except:
+#             exit("URL " + url + " is not valid.\n")
+        if not pw:
+            exit("No gateway password was found.\n")
+        self.path = path
+        self.name = name
+        self.url = url
+        self.pw = pw
+        self.user = user
+        self.absoluteTime = absoluteTime
+        self.rm = rm
+        self.gatewayVersion = gatewayVersion
+        self.lengthOfDouble = len(pack('d', time.time()))
+        self.lengthOfShort = len(pack('h', 1))
     
-    """
-    keeps sending as long as all files are send or an error occures
-    @return int
-    number of post requests
-    """
     def send(self):
-        count = 0
+        """
+        Keeps sending until all files are sent or an error occurs.
+        @return number of post requests as an integer
+        """
+        countFrames = 0
         while(post == self.sendFile()):
-            count += post
-        return(count)
+            countFrames += post
+        return(countFrames)
     
-    """
-    read one file from the queue and try to send it to the gateway
-    on success file is deleted or renamed to *.bak
-    takes always the oldest file
-    """
     def sendFile(self):
-        pass
-        #chdir(self.path)
+        """
+        Reads one file from queue and tries to send it to the gateway.
+        On success file is deleted or renamed to *.bak ending.
+        Always the oldest file is used.
+        """
+        chdir(self.path)
+        files = glob.glob('*.rd')
+        if len(files) == 0:
+            return 0
+        fp = open(files[0], 'rb') # opens oldest file
+        data = '&sender=' + urllib.quote_plus(self.name)
         
-    """
-    @param data
-    @return success
-    """
+        count = 0
+        print(fp)
+        ts = fp.read(self.lengthOfDouble)
+        if ts:
+            ts = unpack('=d', ts)[0]
+            frameLength = unpack('=h', fp.read(self.lengthOfShort))[0]
+            frame = fp.read(frameLength)
+            if len(frame) != 0:
+                ++count
+                timestampFrame = pack('b', 0xc) + pack('Q', round(ts * 1000)) + frame
+                data += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestampFrame)
+        fp.close()
+        self.post(data)
+        if self.rm:
+            os.remove(files[0])
+        #return(count)
+            
+        
     def post(self, data):
-        pass
-        
+        """
+        Posts frames to gateway.
+        @param postData
+        @return success
+        """
+        password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        password_mgr.add_password(None, self.url, self.user, self.pw)
+        handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+        opener = urllib2.build_opener(handler)
+        req = urllib2.Request(self.url, data)
+        req.add_header('Accept', 'text/html')
+        req.add_header('User-Agent', 'BayEOS-PHP/1.0.8')
+        post = opener.open(req)        
 
 class BayEOSGatewayClient():
     """

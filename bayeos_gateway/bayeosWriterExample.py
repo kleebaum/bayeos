@@ -3,16 +3,18 @@
 from array import array
 from time import sleep
 
-import bayeosWriter
+from bayeosGatewayClient import BayEOSWriter
 
 
 def main():
-    tmpDir = '/tmp'
-    writer = bayeosWriter.BayEOSWriter(tmpDir)
+    path = '/tmp/bayeos-device1/'
+    writer = BayEOSWriter(path, 100)
     count = 0
     while True:
+        sleep(1)
         print('adding frame\n')
-        writer.saveDataFrame(array(count), 1, 1.0)
+        BayEOSWriter.saveDataFrame(writer, [[0,2], [1,3], [2,20]], 0x21, 0)
         count += 1
-        sleep(5)
+        sleep(1)
         
+main()

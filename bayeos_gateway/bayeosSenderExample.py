@@ -1,17 +1,20 @@
 '''creates an example sender'''
 
-from array import array
 from time import sleep
 
-import bayeosSender
+from bayeosGatewayClient import BayEOSSender
 
 
 def main():
-    sender = bayeosSender.BayEOSSender('/tmp/bayeos-device1',
-                                       'PHP-Test-Device',
-                                       'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',
-                                       'xbee',
-                                       'admin')
+    path = '/tmp/bayeos-device1/'
+    name = 'PythonTest3'
+    url = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+    sender = BayEOSSender(path, name, url, 'xbee', 'admin')
+    
     while True:
-        pass
+        sender.send()
+#         if status > 0:
+#             print ("juhu!\n")
+        sleep(5)  
         
+main()
