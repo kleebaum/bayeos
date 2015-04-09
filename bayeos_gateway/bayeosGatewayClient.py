@@ -1,3 +1,206 @@
+import glob
+from posix import mkdir, chdir, rename
+import os
+import time
+from struct import *
+import string
+
+from _dbus_bindings import Array
+from mutagen.id3._frames import Frame
+from requests.api import post
+
+
+class BayEOS():
+    def createDataFrame(self, values, valueType=0x1, offset=0):
+        """
+        Creates a BayEOS Data Frame.
+        @param values: list with [channel index, value] tuples
+        @param valueType: defines Offset and Data Types
+        @param offset: length of Channel Offset (if Offset Type is 0x0)
+        @return Data Frame as a binary string
+        """
+        frame = pack('bb', 0x1, valueType)     # 0x1 represents data frame 
+        offsetType = (0xf0 & valueType)             # first four bits of frame type
+        dataType = (0x0f & valueType)                 # last four bits of frame type    
+        if offsetType == 0x0:                        # data frame with channel offset
+                frame += pack('b', offset)         # 1 byte channel offset
+        
+        for [key, each_value] in values:
+            if offsetType == 0x40:                  # data frame with channel indices
+                frame += pack('b', key)
+            if dataType == 0x1:                         # float32 4 bytes
+                frame += pack('f', each_value)
+            elif dataType == 0x2:                   # int32 4 bytes
+                frame += pack('i', each_value)   
+            elif dataType == 0x3:                   # int16 2 bytes
+                frame += pack('h', each_value)  
+            elif dataType == 0x4:                   # int8 1 byte
+                frame += pack('b', each_value)  
+            elif dataType == 0x5:                   # double 8 bytes
+                frame += pack('d', each_value)  
+                    
+        return(frame)
+            
+    def parseFrame(self, frame, ts=False, origin='', rssi=False):
+        """
+        Parses a binary BayEOS frame into a Python Array.
+        @param frame
+        @param ts
+        @param origin
+        @param rssi
+        @return array
+        """
+        if not ts:
+            ts = 0
+            
+    def parseDataFrame(self, frame):
+        """
+        Parses a BayEOS Data Frame into a PHP Array.
+        @param Frame
+        @return Array
+        """
+        pass
+    
+class BayEOSWriter():
+    def __init__(self, path, maxChunk=5000, maxTime=60):
+        """ 
+        Constructor for a BayEOSWriter instance.
+        @param path: path of queue directory
+        @param maxChunk: maximum file size when a new file is started
+        @param maxTime: maximum time when a new file is started
+        """
+        self.path = path
+        self.maxChunk = maxChunk
+        self.maxTime = maxTime
+        if not os.path.isdir(self.path):
+            print("try to create new folder")
+            os.mkdir(self.path)
+              #  exit("Could not create " + self.path)
+                
+        chdir(self.path)
+        files = glob.glob('*')
+        for eachFile in files:
+            print("found file in folder")
+            if string.find(eachFile, '.act'):    # Found active file -- unexpected shutdown
+                print("found active file")
+                rename(eachFile, eachFile.replace('.act', '.rd'))
+        self.startNewFile()
+        
+    def saveDataFrame(self, values, valueType=0x1, offset=0, ts=0):
+        """
+        Writes a Data Frame to the buffer.
+        @param values: array for values
+        @param valueType: defines Offset and Data Types
+        @param offset: offset parameter for BayEOS data frames (relevant for some types)
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
+        self.saveFrame(BayEOS.createDataFrame(BayEOS(), values, valueType, offset), ts)
+
+    def saveOriginFrame(self, origin, frame, ts=0):
+        """
+        save origin frame
+        @param origin: name to appear in the gateway
+        @param frame: must be a valid BayEOS frame
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
+        origin = origin[0:255]
+        self.saveFrame(frame, ts)
+    
+    """
+    save routed frame RSSI
+    @param myId: TX-XBee MyId
+    @param panId: XBee PANID
+    @param rssi: RSSI
+    @param frame: must be a valid BayEOS frame
+    @param ts: Unix epoch time stamp, if zero system time is used
+    """
+    def saveRoutedFrameRSSI(self, myId, panId, rssi, frame, ts=0):
+        self.saveFrame(frame, ts)
+    
+    """
+    save message
+    @param sting: message to save
+    @param ts: Unix epoch time stamp, if zero system time is used
+    """
+    def saveMessage(self,sting,ts=0):
+        self.saveFrame(sting, ts)
+        
+    """
+    save error message
+    @param sting: message to save
+    @param ts: Unix epoch time stamp, if zero system time is used
+    """
+    def saveErrorMessage(self, sting, ts=0):
+        self.saveFrame(sting, ts)
+        
+
+    def saveFrame(self, frame, ts=0):
+        """save frame, base function
+        @param frame: must be a valid BayEOS frame
+        @param ts: Unix epoch time stamp, if zero system time is used 
+        """
+        if not ts:
+            ts = time.time()
+        frameTs = pack('d', ts)
+        frameLength = pack('h', len(frame))
+        timestampFrame = frameTs + frameLength + frame
+        #self.currentName = self.path + '/' + str(time.time()) + '.rd'
+ 
+        self.fp.write(timestampFrame)
+        if self.fp.tell() > self.maxChunk or time.time() - self.currentTs > self.maxTime:
+            self.fp.close()
+            rename(self.currentName + '.act', self.currentName + '.rd')
+            self.startNewFile()
+    
+    def startNewFile(self):
+        self.currentTs = time.time()
+        [sec, usec] = string.split(str(self.currentTs), '.')
+        self.currentName = sec + '-' + usec
+        self.fp = open(self.currentName + '.act', 'wb')
+        
+class BayEOSSender():
+    """
+    Constructor for BayEOS-Sender
+    @param path: path where BayEOSWriter puts files
+    @param name: sender name
+    @param url: gateway url e.g. http://<gateway>/gateway/frame/saveFlat
+    @param pw: password on gateway
+    @param user: user on gateway
+    @param absoluteTime: if set to false, relative time is used (delay)
+    @param rm: if set to false files are kept as .bak file in the BayEOSWriter directory
+    @param gatewayVersion: gateway version
+    """
+    def __init__(self, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1,9'):
+        pass
+    
+    """
+    keeps sending as long as all files are send or an error occures
+    @return int
+    number of post requests
+    """
+    def send(self):
+        count = 0
+        while(post == self.sendFile()):
+            count += post
+        return(count)
+    
+    """
+    read one file from the queue and try to send it to the gateway
+    on success file is deleted or renamed to *.bak
+    takes always the oldest file
+    """
+    def sendFile(self):
+        pass
+        #chdir(self.path)
+        
+    """
+    @param data
+    @return success
+    """
+    def post(self, data):
+        pass
+        
+
 class BayEOSGatewayClient():
     """
     create an instance of bayeosGatewayClient
@@ -43,5 +246,7 @@ class BayEOSGatewayClient():
     can be overwritten by implementation (e.g. to store routed frames)
     """    
     def saveData(self, data):
-        pass
+        pass  
+
+
      
