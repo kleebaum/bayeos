@@ -7,7 +7,7 @@ from bayeosGatewayClient import BayEOSSender
 
 def main():
     path = '/tmp/bayeos-device1/'
-    name = 'PythonTest3'
+    name = 'Python-Test-Device'
     url = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
     sender = BayEOSSender(path, name, url, 'xbee', 'admin')
     

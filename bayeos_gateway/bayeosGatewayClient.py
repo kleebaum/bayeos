@@ -1,10 +1,11 @@
 import glob
 from posix import mkdir, chdir, rename
 import os
-import time
+import time, datetime
 from struct import *
 import string
 import urllib, urllib2, base64
+import httplib
 
 from _dbus_bindings import Array
 from mutagen.id3._frames import Frame
@@ -169,10 +170,6 @@ class BayEOSSender():
         @param rm: if set to false files are kept as .bak file in the BayEOSWriter directory
         @param gatewayVersion: gateway version
         """
-#         try:
-#             urllib2.urlopen(url)
-#         except:
-#             exit("URL " + url + " is not valid.\n")
         if not pw:
             exit("No gateway password was found.\n")
         self.path = path
@@ -185,53 +182,73 @@ class BayEOSSender():
         self.gatewayVersion = gatewayVersion
         self.lengthOfDouble = len(pack('d', time.time()))
         self.lengthOfShort = len(pack('h', 1))
+        self.ref = time.time()-(datetime.datetime(2000,1,1)-datetime.datetime(1970,1,1)).total_seconds()
     
     def send(self):
         """
         Keeps sending until all files are sent or an error occurs.
         @return number of post requests as an integer
         """
-        countFrames = 0
+        count = 0
         while(post == self.sendFile()):
-            countFrames += post
-        return(countFrames)
+            count += post
+        return(count)
     
     def sendFile(self):
         """
         Reads one file from queue and tries to send it to the gateway.
         On success file is deleted or renamed to *.bak ending.
         Always the oldest file is used.
+        @return number of post requests as an integer
         """
         chdir(self.path)
         files = glob.glob('*.rd')
         if len(files) == 0:
             return 0
-        fp = open(files[0], 'rb') # opens oldest file
+        fp = open(files[0], 'rb')       # opens oldest file
         data = '&sender=' + urllib.quote_plus(self.name)
-        
+        frames = ''
         count = 0
-        print(fp)
         ts = fp.read(self.lengthOfDouble)
-        if ts:
+        while ts:                       # until end of file
             ts = unpack('=d', ts)[0]
             frameLength = unpack('=h', fp.read(self.lengthOfShort))[0]
             frame = fp.read(frameLength)
-            if len(frame) != 0:
-                ++count
-                timestampFrame = pack('b', 0xc) + pack('Q', round(ts * 1000)) + frame
-                data += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestampFrame)
+            if frame:
+                count += 1
+                if self.absoluteTime:   # Timestamp Frame
+                    if self.gatewayVersion == '1.8':    # second resolution from 2000-01-01
+                        timestampFrame = pack('b', 0x9) + pack('l', round(ts - self.ref)) + frame
+                    else:                               # millisecond resolution from 1970-01-01
+                        timestampFrame = pack('b', 0xc) + pack('q', round(ts * 1000)) + frame
+                else:                   # Delayed Frame
+                    timestampFrame = pack('b', 0x7) + pack('l', round((time.time() - ts) * 1000)) + frame
+                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestampFrame)
+            ts = fp.read(self.lengthOfDouble)
         fp.close()
-        self.post(data)
-        if self.rm:
-            os.remove(files[0])
-        #return(count)
-            
+        if frames:              # content found for post request
+            res = self.post(data + frames)
+            if res == 1:
+                if self.rm:
+                    os.remove(files[0])
+                else:
+                    rename(files[0], files[0].replace('.rd', '.bak'))
+            elif res == 0:
+                rename(files[0], files[0].replace('.rd', '.bak'))
+                exit('Error posting. File will be kept as ' + str(files[0].replace('.rd', '.bak')))
+            return(count)
+        else:                           # empty file
+            if os.stat(files[0]).st_size:
+                rename(files[0], files[0].replace('.rd', '.bak'))
+            else:
+                os.remove(files[0])
+        return 0
         
     def post(self, data):
         """
         Posts frames to gateway.
         @param postData
-        @return success
+        @return success (1) or failure (0)
         """
         password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
         password_mgr.add_password(None, self.url, self.user, self.pw)
@@ -239,8 +256,18 @@ class BayEOSSender():
         opener = urllib2.build_opener(handler)
         req = urllib2.Request(self.url, data)
         req.add_header('Accept', 'text/html')
-        req.add_header('User-Agent', 'BayEOS-PHP/1.0.8')
-        post = opener.open(req)        
+        req.add_header('User-Agent', 'BayEOS-Python-Gateway-Client/0.0.1')
+        try:
+            opener.open(req)
+            return 1
+        except urllib2.HTTPError as e:
+            if e.code == 401:
+                exit('Authentication did not succeed.\n')    
+            elif e.code == 404:
+                exit('URL ' + self.url + ' is not valid.\n')  
+            else:
+                exit('Post error: ' + str(e) + '.\n')
+        return 0
 
 class BayEOSGatewayClient():
     """
