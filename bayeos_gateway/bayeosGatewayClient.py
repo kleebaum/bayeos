@@ -1,16 +1,6 @@
-import glob
-from posix import mkdir, chdir, rename
-import os
-import time, datetime
-from struct import *
-import string
-import urllib, urllib2, base64
-import httplib
-
-from _dbus_bindings import Array
-from mutagen.id3._frames import Frame
-from requests.api import post
-from _sane import FRAME_BLUE
+import os, time, datetime, string, urllib, urllib2, base64, glob
+from posix import chdir, rename
+from struct import pack, unpack
 
 class BayEOS():
     def createDataFrame(self, values, valueType=0x1, offset=0):
@@ -75,16 +65,14 @@ class BayEOSWriter():
         self.maxChunk = maxChunk
         self.maxTime = maxTime
         if not os.path.isdir(self.path):
-            #print("try to create new folder")
-            os.mkdir(self.path, 0700)
-              #  exit("Could not create " + self.path)
-                
+            try:
+                os.mkdir(self.path, 0700)
+            except OSError as e:
+                print('OSError: ' + str(e))                
         chdir(self.path)
         files = glob.glob('*')
         for eachFile in files:
-            #print("found file in folder")
-            if string.find(eachFile, '.act'):    # Found active file -- unexpected shutdown
-                #print("found active file")
+            if string.find(eachFile, '.act'):    # Rename active file 
                 rename(eachFile, eachFile.replace('.act', '.rd'))
         self.startNewFile()
         
@@ -100,42 +88,50 @@ class BayEOSWriter():
 
     def saveOriginFrame(self, origin, frame, ts=0):
         """
-        save origin frame
+        Saves origin frame.
         @param origin: name to appear in the gateway
         @param frame: must be a valid BayEOS frame
         @param ts: Unix epoch time stamp, if zero system time is used
         """
         origin = origin[0:255]
-        self.saveFrame(frame, ts)
-    
+        self.saveFrame(pack('b', 0xb) + pack('b', len(origin)) + origin + frame, ts)    
+        
+    def saveRoutedFrame(self, myId, panId, frame, ts=0):
+        """
+        Saves routed frame.
+        @param myId: TX-XBee MyId
+        @param panId: XBee PANID
+        @param frame: must be a valid BayEOS frame
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
+        self.saveFrame(pack('b', 0x8) + pack('h', myId) + pack('h', panId) + frame, ts)
 
     def saveRoutedFrameRSSI(self, myId, panId, rssi, frame, ts=0):
         """
-        save routed frame RSSI
+        Saves routed frame RSSI.
         @param myId: TX-XBee MyId
         @param panId: XBee PANID
         @param rssi: RSSI
         @param frame: must be a valid BayEOS frame
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(frame, ts)
+        self.saveFrame(pack('b', 0x8) + pack('h', myId) + pack('h', panId) + pack('b', rssi) + frame, ts)
     
-    def saveMessage(self,sting,ts=0):
+    def saveMessage(self, string, ts=0):
         """
-        save message
+        Saves message.
         @param sting: message to save
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(sting, ts)
+        self.saveFrame(pack('b', 0x4) + string, ts)
         
-    def saveErrorMessage(self, sting, ts=0):
+    def saveErrorMessage(self, string, ts=0):
         """
-        save error message
+        Saves error message.
         @param sting: message to save
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(sting, ts)
-        
+        self.saveFrame(pack('b', 0x5) + string, ts)        
 
     def saveFrame(self, frame, ts=0):
         """Save Timestamp Frame to file. This is a base function.
@@ -190,8 +186,10 @@ class BayEOSSender():
         @return number of post requests as an integer
         """
         count = 0
-        while(post == self.sendFile()):
+        post = self.sendFile()
+        while(post):
             count += post
+            post = self.sendFile()
         return(count)
     
     def sendFile(self):
@@ -250,21 +248,21 @@ class BayEOSSender():
         @param postData
         @return success (1) or failure (0)
         """
-        password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
-        password_mgr.add_password(None, self.url, self.user, self.pw)
-        handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+        passwordManager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        passwordManager.add_password(None, self.url, self.user, self.pw)
+        handler = urllib2.HTTPBasicAuthHandler(passwordManager)
         opener = urllib2.build_opener(handler)
         req = urllib2.Request(self.url, data)
         req.add_header('Accept', 'text/html')
-        req.add_header('User-Agent', 'BayEOS-Python-Gateway-Client/0.0.1')
+        req.add_header('User-Agent', 'BayEOS-Python-Gateway-Client/1.0.0')
         try:
             opener.open(req)
             return 1
         except urllib2.HTTPError as e:
             if e.code == 401:
-                exit('Authentication did not succeed.\n')    
+                exit('Authentication failed.\n')    
             elif e.code == 404:
-                exit('URL ' + self.url + ' is not valid.\n')  
+                exit('URL ' + self.url + ' is invalid.\n')  
             else:
                 exit('Post error: ' + str(e) + '.\n')
         return 0
@@ -314,7 +312,4 @@ class BayEOSGatewayClient():
     can be overwritten by implementation (e.g. to store routed frames)
     """    
     def saveData(self, data):
-        pass  
-
-
-     
+        pass     
