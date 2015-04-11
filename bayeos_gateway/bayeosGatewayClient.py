@@ -1,6 +1,7 @@
 import os, time, datetime, string, urllib, urllib2, base64, glob
 from posix import chdir, rename
 from struct import pack, unpack
+from _socket import gethostname
 
 class BayEOS():
     def createDataFrame(self, values, valueType=0x1, offset=0):
@@ -35,7 +36,7 @@ class BayEOS():
             
     def parseFrame(self, frame, ts=False, origin='', rssi=False):
         """
-        Parses a binary BayEOS frame into a Python Array.
+        Parses a binary coded BayEOS Frame into a Python dictionary.
         @param frame
         @param ts
         @param origin
@@ -43,15 +44,97 @@ class BayEOS():
         @return array
         """
         if not ts:
-            ts = 0
+            ts = time.time()
+        frameType = unpack('=b', frame[0:1])[0]
+        res = {}
+        if frameType == 0x1:
+            res['type'] = 'DataFrame'
+            res['value'] = self.parseDataFrame(frame)
+        elif frameType == 0x2:
+            res['type'] = 'Command'
+            res['cmd'] = unpack('=b', frame[1:2])[0]
+            res['value'] = frame[2:]
+        elif frameType == 0x3:
+            res['type'] = 'CommandResponse'
+            res['cmd'] = unpack('=b', frame[1:2])[0]
+            res['value'] = frame[2:]
+        elif frameType == 0x4:
+            res['type'] = 'Message'
+            res['value'] = frame[1:]
+        elif frameType == 0x5:
+            res['type'] = 'ErrorMessage'
+            res['value'] = frame[1:]
+        elif frameType == 0x6:
+            res['type'] = 'RoutedFrame'
+            
+        elif frameType == 0x7:
+            res['type'] = 'DelayedFrame'
+        elif frameType == 0x8:
+            res['type'] = 'RoutedFrameRSSI'
+        elif frameType == 0x9:
+            res['type'] = 'TimestampFrame'
+            #ts 
+        elif frameType == 0xa:
+            res['type'] = 'Binary'
+            res['pos'] = unpack('=f', frame[1:5])[0]
+            res['value'] = frame[5:]
+        elif frameType == 0xb:
+            res['type'] = 'OriginFrame'
+        elif frameType == 0xc:
+            res['type'] = 'TimestampFrame'
+            ts = unpack('=d', frame[1:9])[0]
+            return self.parseFrame(frame[9:], ts, origin, rssi)
+        else:
+            res['type'] = 'Unknown'
+            res['value'] = frame
+        if ts:
+            res['ts'] = ts
+        if origin:
+            res['origin'] = origin
+        if rssi:
+            res['rssi'] = rssi
+        return(res)
             
     def parseDataFrame(self, frame):
         """
-        Parses a BayEOS Data Frame into a PHP Array.
-        @param Frame
-        @return Array
+        Parses a binary coded BayEOS Data Frame into a Python dictionary.
+        @param frame: binary coded BayEOS Data Frame
+        @return unpacked tuples of channel indices and values
         """
-        pass
+        if unpack('=b', frame[0:1])[0] != 0x1:
+            return False
+        valueType = unpack('=b', frame[1:2])[0]
+        offsetType = 0xf0 & valueType
+        dataType = 0x0f & valueType
+        pos = 2
+        key = 0
+        res = {}
+        if offsetType == 0x0:
+            key = unpack('=b', frame[2:3])[0] # offset
+            pos += 1
+        while(pos < len(frame)):
+            if offsetType == 0x40:
+                key = unpack('=b', frame[pos:pos+1])[0]
+                pos += 1
+            else:
+                key += 1
+            if dataType == 0x1:
+                value = unpack('=f', frame[pos:pos+4])[0]
+                pos += 4
+            elif dataType == 0x2:
+                value = unpack('=i', frame[pos:pos+4])[0]
+                pos += 4 
+            elif dataType == 0x3:
+                value = unpack('=h', frame[pos:pos+2])[0]
+                pos += 2   
+            elif dataType == 0x4:
+                value = unpack('=b', frame[pos:pos+1])[0]
+                pos += 1   
+            elif dataType == 0x5:
+                value = unpack('=d', frame[pos:pos+4])[0]
+                pos += 8      
+            res[key] = value
+        return res        
     
 class BayEOSWriter():
     def __init__(self, path, maxChunk=5000, maxTime=60):
@@ -85,6 +168,9 @@ class BayEOSWriter():
         @param ts: Unix epoch time stamp, if zero system time is used
         """
         self.saveFrame(BayEOS.createDataFrame(BayEOS(), values, valueType, offset), ts)
+    
+    def saveCommandFrame(self, command, ts=0):
+        self.saveFrame(pack('b', 0x2) + command, ts)        
 
     def saveOriginFrame(self, origin, frame, ts=0):
         """
@@ -104,7 +190,7 @@ class BayEOSWriter():
         @param frame: must be a valid BayEOS frame
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x8) + pack('h', myId) + pack('h', panId) + frame, ts)
+        self.saveFrame(pack('b', 0x6) + pack('h', myId) + pack('h', panId) + frame, ts)
 
     def saveRoutedFrameRSSI(self, myId, panId, rssi, frame, ts=0):
         """
@@ -269,18 +355,29 @@ class BayEOSSender():
 
 class BayEOSGatewayClient():
     """
-    create an instance of bayeosGatewayClient
-    @param names: name array e.g. 'Fifo.0', 'Fifo.1'..., used for storage directory e.g. /tmp/Fifo.0
-    @param options
+    Creates an instance of BayEOSGatewayClient.
+    @param names: name array e.g. 'Fifo.0', 'Fifo.1'...
+    Name is used for storage directory e.g. /tmp/Fifo.0.
+    @param options: array of options. Three forms are possible.
     """
     def __init__(self, names, options, defaults):
-        pass
+        if len(names) == 0:
+            exit('No names are given.\n')
+        
+        prefix = ''
+        if not options['sender'] == '':
+            prefix = gethostname() + '/'
+        else:
+            pass
+        
+        self.names = names
+        self.options = options
     
     """
-    helper function to get an option value
+    Helper function to get an option value.
     @param key
     @param default
-    @return string: value of the specified option key
+    @return Value of the specified option key as a 'String.
     """
     def getOption(self, key, default=''):
         pass
