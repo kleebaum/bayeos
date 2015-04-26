@@ -8,7 +8,7 @@ def main():
     
     while True:
         print('adding frame\n')
-        BayEOSWriter.saveDataFrame(writer, [[0,2], [1,3], [2,20]], 0x21, 0)
+        writer.save(offset=2, values=[[4,2], [1,3], [2,20]])
         sleep(1)
         
 main()

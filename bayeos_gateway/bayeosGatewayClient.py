@@ -158,6 +158,7 @@ class BayEOSWriter():
             if string.find(eachFile, '.act'):    # Rename active file 
                 rename(eachFile, eachFile.replace('.act', '.rd'))
         self.startNewFile()
+        self.bayeos = BayEOS()
         
     def saveDataFrame(self, values, valueType=0x1, offset=0, ts=0):
         """
@@ -167,20 +168,41 @@ class BayEOSWriter():
         @param offset: offset parameter for BayEOS data frames (relevant for some types)
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(BayEOS.createDataFrame(BayEOS(), values, valueType, offset), ts)
+        self.saveFrame(self.bayeos.createDataFrame(values, valueType, offset), ts)
     
-    def saveCommandFrame(self, command, ts=0):
-        self.saveFrame(pack('b', 0x2) + command, ts)        
-
-    def saveOriginFrame(self, origin, frame, ts=0):
+    def saveCommandFrame(self, cmdType, command, ts=0):
         """
-        Saves origin frame.
-        @param origin: name to appear in the gateway
-        @param frame: must be a valid BayEOS frame
+        Saves Command Frame.
+        @param cmdType: type of command
+        @param command: instruction for receiver
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        origin = origin[0:255]
-        self.saveFrame(pack('b', 0xb) + pack('b', len(origin)) + origin + frame, ts)    
+        self.saveFrame(pack('b', 0x2) + pack('b', cmdType) + command, ts)  
+        
+    def saveCommandResponseFrame(self, cmdType, commandRes, ts=0):
+        """
+        Saves Command Response Frame.
+        @param cmdType: type of command
+        @param commandRes: response of receiver
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
+        self.saveFrame(pack('b', 0x3) + pack('b', cmdType) + commandRes, ts)    
+        
+    def saveMessage(self, string, ts=0):
+        """
+        Saves message.
+        @param sting: message to save
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
+        self.saveFrame(pack('b', 0x4) + string, ts)
+        
+    def saveErrorMessage(self, string, ts=0):
+        """
+        Saves error message.
+        @param sting: message to save
+        @param ts: Unix epoch time stamp, if zero system time is used
+        """
+        self.saveFrame(pack('b', 0x5) + string, ts)         
         
     def saveRoutedFrame(self, myId, panId, frame, ts=0):
         """
@@ -201,23 +223,17 @@ class BayEOSWriter():
         @param frame: must be a valid BayEOS frame
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x8) + pack('h', myId) + pack('h', panId) + pack('b', rssi) + frame, ts)
-    
-    def saveMessage(self, string, ts=0):
+        self.saveFrame(pack('b', 0x8) + pack('h', myId) + pack('h', panId) + pack('b', rssi) + frame, ts)     
+
+    def saveOriginFrame(self, origin, frame, ts=0):
         """
-        Saves message.
-        @param sting: message to save
+        Saves Origin Frame.
+        @param origin: name to appear in the gateway
+        @param frame: must be a valid BayEOS frame
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x4) + string, ts)
-        
-    def saveErrorMessage(self, string, ts=0):
-        """
-        Saves error message.
-        @param sting: message to save
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x5) + string, ts)        
+        origin = origin[0:255]
+        self.saveFrame(pack('b', 0xb) + pack('b', len(origin)) + origin + frame, ts)
 
     def saveFrame(self, frame, ts=0):
         """Save Timestamp Frame to file. This is a base function.
@@ -238,6 +254,14 @@ class BayEOSWriter():
         [sec, usec] = string.split(str(self.currentTs), '.')
         self.currentName = sec + '-' + usec
         self.fp = open(self.currentName + '.act', 'wb')
+    
+    def save(self, values, valueType=0x1, offset=0, ts=0, origin=''):
+        """ Generic frame saving method. """ 
+        if not origin:
+            self.saveDataFrame(values, valueType, offset, ts)
+        else:     
+            dataFrame = self.bayeos.createDataFrame(values, valueType, offset)       
+            self.saveOriginFrame(origin, dataFrame, ts)
         
 class BayEOSSender():
     def __init__(self, path, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1.9'):
