@@ -2,6 +2,7 @@ import os, time, datetime, string, urllib, urllib2, base64, glob
 from posix import chdir, rename
 from struct import pack, unpack
 from _socket import gethostname
+from time import sleep
 
 class BayEOS():
     def createDataFrame(self, values, valueType=0x1, offset=0):
@@ -380,19 +381,26 @@ class BayEOSSender():
 class BayEOSGatewayClient():
     """
     Creates an instance of BayEOSGatewayClient.
-    @param names: name array e.g. 'Fifo.0', 'Fifo.1'...
+    @param names: name dictionary e.g. 'Fifo.0', 'Fifo.1'...
     Name is used for storage directory e.g. /tmp/Fifo.0.
-    @param options: array of options. Three forms are possible.
+    @param options: dictionary of options. Three forms are possible.
     """
-    def __init__(self, names, options, defaults):
+    def __init__(self, names, options={}, defaults={}):
+        print names
+        if len(set(names)) < len(names):
+            exit('Duplicate names detected.')
         if len(names) == 0:
-            exit('No names are given.\n')
-        
+            exit('No name given.')
+
         prefix = ''
-        if not options['sender'] == '':
+        if not 'sender' in options:
             prefix = gethostname() + '/'
-        else:
-            pass
+        elif not isarray(options['sender']) and len(names) > 1:
+            prefix = options['sender'] + '/'
+            del options['sender']
+        for i in range(0, len(names)):
+            senderDefaults = {}
+            senderDefaults[i] = prefix + names[i]
         
         self.names = names
         self.options = options
@@ -401,18 +409,67 @@ class BayEOSGatewayClient():
     Helper function to get an option value.
     @param key
     @param default
-    @return Value of the specified option key as a 'String.
+    @return Value of the specified option key as a string.
     """
     def getOption(self, key, default=''):
-        pass
+        if isset(self.options[key]):
+            if isarray(self.options[key]):
+                if isset(self.options[key][self.i]):
+                    return self.options[key][self.i]
+                if isset(self.options[key][self.name]):
+                    return self.options[key][self.name]
+        return default
     
     """
-    runs the BayEOSGatewayClient
-    forks one BayEOSWrite and one BayEOSSender per name
+    Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name.
     """
     def run(self):
-        pass
-    
+        for i in range(0, len(self.names)):
+            self.i = i
+            self.name = self.names[i]
+            path = self.getOption('tmp_dir') + '/' + self.name.replace(['/', '\\', '"', '\''], '_')
+            self.pid_w[i] = os.fork()
+            if self.pid_w[i] == -1:
+                exit("Could not fork writer process!")
+            elif self.pid_w[i]:     # Parent
+                print "Started writer"
+            else:                   # Child
+                self.initWriter()
+                self.writer = BayEOSWriter(path, 
+                                           self.getOption('max_chunk'), 
+                                           self.getOption('max_time'))
+                while True:
+                    data = self.readData()
+                    if data:
+                        self.saveData(data)
+                    else:
+                        print "readData failed"
+                        sleep(self.getOption('writer_sleep_time'))
+                exit()
+                
+            self.pid_r[i] = os.fork()
+            if self.pid_r[i] == -1:
+                exit("Could not fork sender process!")
+            elif self.pid_r[i]:     # Parent
+                print "Started sender"
+                sleep(self.getOption('sleep_between_childs'))
+            else:                   # Child
+                sender = BayEOSSender(path, 
+                                      self.getOption('sender'), 
+                                      self.getOption('bayeosgateway_url'),
+                                      self.getOption('bayeosgateway_pw'),
+                                      self.getOption('bayeosgateway_user'),
+                                      self.getOption('absolute_time'),
+                                      self.getOption('rm'),
+                                      self.getOption('bayeosgateway_version'))
+                
+                while True:
+                    res = sender.send()
+                    if res > 0:
+                        print ('Successfully sent ' + str(res) + ' frames.\n')
+                    sleep(self.getOption('sender_sleep_time'))  
+                exit()                 
+
     """
     method called by run()
     can be overwritten by implementation
@@ -434,3 +491,10 @@ class BayEOSGatewayClient():
     """    
     def saveData(self, data):
         pass     
+    
+def isset(var):
+    return var in locals() or var in globals()
+
+def isarray(var):
+    return isinstance(var, (list, tuple))
+
