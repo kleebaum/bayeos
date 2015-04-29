@@ -1,4 +1,4 @@
-import os, time, datetime, string, urllib, urllib2, base64, glob
+import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re
 from posix import chdir, rename
 from struct import pack, unpack
 from _socket import gethostname
@@ -379,13 +379,14 @@ class BayEOSSender():
         return 0
 
 class BayEOSGatewayClient():
-    """
-    Creates an instance of BayEOSGatewayClient.
-    @param names: name dictionary e.g. 'Fifo.0', 'Fifo.1'...
-    Name is used for storage directory e.g. /tmp/Fifo.0.
-    @param options: dictionary of options. Three forms are possible.
-    """
-    def __init__(self, names, options={}, defaults={}):
+
+    def __init__(self, names, options1={}, defaults1={}):
+        """
+        Creates an instance of BayEOSGatewayClient.
+        @param names: name dictionary e.g. 'Fifo.0', 'Fifo.1'...
+        Name is used for storage directory e.g. /tmp/Fifo.0.
+        @param options: dictionary of options. Three forms are possible.
+        """
         print names
         if len(set(names)) < len(names):
             exit('Duplicate names detected.')
@@ -393,41 +394,72 @@ class BayEOSGatewayClient():
             exit('No name given.')
 
         prefix = ''
-        if not 'sender' in options:
+        if not 'sender' in options1:
             prefix = gethostname() + '/'
-        elif not isarray(options['sender']) and len(names) > 1:
-            prefix = options['sender'] + '/'
-            del options['sender']
+        elif not isarray(options1['sender']) and len(names) > 1:
+            prefix = options1['sender'] + '/'
+            del options1['sender']
         for i in range(0, len(names)):
             senderDefaults = {}
             senderDefaults[i] = prefix + names[i]
+            
+        defaults = {'writer_sleep_time' : 20,
+                    'max_chunk' : 5000,
+                    'max_time' : 60,
+                    'data_type' : 0x1,
+                    'sender_sleep_time' : 15,
+                    #'sender' : senderDefaults,
+                    'sender' : 'anja',
+                    'bayeosgateway_user' : 'import',
+                    'bayeosgateway_version' : '1.9',
+                    'absolute_time' : True,
+                    'rm' : True,
+                    'tmp_dir' : tempfile.gettempdir()
+                    }
+        defaults.update(defaults1)
+        options = {}
+        
+        for default in defaults.items():
+            try:
+                options1[default[0]]
+            except KeyError:
+                print "Option '" + default[0] + "' not set using default: " + str(default[1])
+                options[default[0]] = default[1]            
+        
+        options.update(options1)
         
         self.names = names
         self.options = options
+        self.pid_w = {}
+        self.pid_r = {}
     
-    """
-    Helper function to get an option value.
-    @param key
-    @param default
-    @return Value of the specified option key as a string.
-    """
     def getOption(self, key, default=''):
-        if isset(self.options[key]):
-            if isarray(self.options[key]):
-                if isset(self.options[key][self.i]):
-                    return self.options[key][self.i]
-                if isset(self.options[key][self.name]):
-                    return self.options[key][self.name]
-        return default
-    
-    """
-    Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name.
-    """
+        """
+        Helper function to get an option value.
+        @param key
+        @param default
+        @return Value of the specified option key as a string.
+        """
+        try:
+            self.options[key]
+        except KeyError:
+            return default
+        finally:
+            return self.options[key]
+#             if isarray(self.options[key]):
+#                 if isset(self.options[key][self.i]):
+#                     return self.options[key][self.i]
+#                 if isset(self.options[key][self.name]):
+#                     return self.options[key][self.name]
+        
     def run(self):
+        """
+        Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name.
+        """
         for i in range(0, len(self.names)):
             self.i = i
-            self.name = self.names[i]
-            path = self.getOption('tmp_dir') + '/' + self.name.replace(['/', '\\', '"', '\''], '_')
+            self.nameTmp = self.names[i]
+            path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+', '_', self.nameTmp)
             self.pid_w[i] = os.fork()
             if self.pid_w[i] == -1:
                 exit("Could not fork writer process!")
@@ -452,7 +484,7 @@ class BayEOSGatewayClient():
                 exit("Could not fork sender process!")
             elif self.pid_r[i]:     # Parent
                 print "Started sender"
-                sleep(self.getOption('sleep_between_childs'))
+                #sleep(self.getOption('sleep_between_childs'))
             else:                   # Child
                 sender = BayEOSSender(path, 
                                       self.getOption('sender'), 
@@ -490,7 +522,7 @@ class BayEOSGatewayClient():
     can be overwritten by implementation (e.g. to store routed frames)
     """    
     def saveData(self, data):
-        pass     
+        self.writer.saveDataFrame(data, self.getOption('data_type'))  
     
 def isset(var):
     return var in locals() or var in globals()

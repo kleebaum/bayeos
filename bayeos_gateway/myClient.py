@@ -1,13 +1,12 @@
 from bayeosGatewayClient import BayEOSGatewayClient
 from random import randint
 
-options = {}
-options['bayeosgateway_url'] = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
-options['bayeosgateway_pw'] = 'xbee'
-options['bayeosgateway_user'] = 'admin'
-options['tmp_dir'] = '/tmp/bayeos-device1'
+options = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',
+           'bayeosgateway_pw' : 'xbee',
+           'bayeosgateway_user' : 'admin',
+           'sender' : 'anja'}
 
-names = ['Python-TestDevice1', 'Python-TestDevice2']
+names = ['Python-Test/Device\\"\'1', 'Python-TestDevice2']
 
 class PythonTestDevice(BayEOSGatewayClient):
     
@@ -15,7 +14,7 @@ class PythonTestDevice(BayEOSGatewayClient):
         if self.names[self.i] == 'Python-TestDevice1':
             return False
         else:
-            return [2, 1.0, randint(-1,1)]
+            return [[0,2], [1,1.0], [2,randint(-1,1)]]
 
 client = PythonTestDevice(names, options)
 
