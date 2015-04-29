@@ -6,10 +6,9 @@ options = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway
            'bayeosgateway_user' : 'admin',
            'sender' : 'anja'}
 
-names = ['Python-Test/Device\\"\'1', 'Python-TestDevice2']
+names = ['Python-Test/Device\\"\'1', 'Python-TestDevice2', 'Python-TestDevice3']
 
 class PythonTestDevice(BayEOSGatewayClient):
-    
     def readData(self):
         if self.names[self.i] == 'Python-TestDevice1':
             return False

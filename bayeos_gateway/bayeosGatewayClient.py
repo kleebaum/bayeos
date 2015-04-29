@@ -1,4 +1,4 @@
-import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re
+import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re, sys
 from posix import chdir, rename
 from struct import pack, unpack
 from _socket import gethostname
@@ -399,7 +399,6 @@ class BayEOSGatewayClient():
         Name is used for storage directory e.g. /tmp/Fifo.0.
         @param options: dictionary of options. Three forms are possible.
         """
-        print names
         if len(set(names)) < len(names):
             exit('Duplicate names detected.')
         if len(names) == 0:
@@ -426,6 +425,7 @@ class BayEOSGatewayClient():
                     'bayeosgateway_version' : '1.9',
                     'absolute_time' : True,
                     'rm' : True,
+                    'sleep_between_children' : 0,
                     'tmp_dir' : tempfile.gettempdir()
                     }
         defaults.update(defaults1)
@@ -470,8 +470,8 @@ class BayEOSGatewayClient():
         """
         for i in range(0, len(self.names)):
             self.i = i
-            self.nameTmp = self.names[i]
-            path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+', '_', self.nameTmp)
+            self.name = self.names[i]
+            path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+', '_', self.name)
             self.pid_w[i] = os.fork()
             if self.pid_w[i] == -1:
                 exit("Could not fork writer process!")
@@ -496,7 +496,7 @@ class BayEOSGatewayClient():
                 exit("Could not fork sender process!")
             elif self.pid_r[i]:     # Parent
                 print "Started sender"
-                #sleep(self.getOption('sleep_between_childs'))
+                sleep(self.getOption('sleep_between_children'))
             else:                   # Child
                 sender = BayEOSSender(path, 
                                       self.getOption('sender'), 
@@ -514,30 +514,25 @@ class BayEOSGatewayClient():
                     sleep(self.getOption('sender_sleep_time'))  
                 exit()                 
 
-    """
-    method called by run()
-    can be overwritten by implementation
-    """
+
     def initWriter(self):
-        pass
-    
-    """
-    method called by run()
-    must be overwritten by implementation
-    """
+        """
+        Method called by run(). Can be overwritten by implementation.
+        """
+        pass    
+
     def readData(self):
-        exit("no readData() found!\n")
+        """
+        Method called by run(). Must be overwritten by implementation.
+        """
+        exit("No readData() found! Method has to be implemented.\n")
         return(False)
-    
-    """
-    method called by run()
-    can be overwritten by implementation (e.g. to store routed frames)
-    """    
+     
     def saveData(self, data):
-        self.writer.saveDataFrame(data, self.getOption('data_type'))  
-    
-def isset(var):
-    return var in locals() or var in globals()
+        """
+        Method called by run(). Can be overwritten by implementation (e.g. to store routed frames).
+        """   
+        self.writer.save(data, self.getOption('data_type'))  
 
 def isarray(var):
     return isinstance(var, (list, tuple))
