@@ -14,7 +14,8 @@ class PythonTestDevice(BayEOSGatewayClient):
         if self.names[self.i] == 'Python-TestDevice1':
             return False
         else:
-            return [[0,2], [1,1.0], [2,randint(-1,1)]]
+            #return [[0,2], [1,1.0], [2,randint(-1,1)]]
+            return (2, 1.0, randint(-1,1))
 
 client = PythonTestDevice(names, options)
 

@@ -7,5 +7,5 @@ writer = BayEOSWriter(path, 100)
     
 while True:
     print('adding frame\n')
-    writer.save(offset=2, values=[[4,2], [1,3], [2,20]])
+    writer.save(offset=2, values=(2,3,20))
     sleep(1)

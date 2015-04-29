@@ -18,20 +18,32 @@ class BayEOS():
         dataType = (0x0f & valueType)               # last four bits of frame type    
         if offsetType == 0x0:                       # data frame with channel offset
                 frame += pack('b', offset)          # 1 byte channel offset
-        
-        for [key, each_value] in values:
-            if offsetType == 0x40:                  # data frame with channel indices
-                frame += pack('b', key)
-            if dataType == 0x1:                     # float32 4 bytes
-                frame += pack('f', each_value)
-            elif dataType == 0x2:                   # int32 4 bytes
-                frame += pack('i', each_value)   
-            elif dataType == 0x3:                   # int16 2 bytes
-                frame += pack('h', each_value)  
-            elif dataType == 0x4:                   # int8 1 byte
-                frame += pack('b', each_value)  
-            elif dataType == 0x5:                   # double 8 bytes
-                frame += pack('d', each_value)  
+        try:
+            for [key, each_value] in values:
+                if offsetType == 0x40:                  # data frame with channel indices
+                    frame += pack('b', key)
+                if dataType == 0x1:                     # float32 4 bytes
+                    frame += pack('f', each_value)
+                elif dataType == 0x2:                   # int32 4 bytes
+                    frame += pack('i', each_value)   
+                elif dataType == 0x3:                   # int16 2 bytes
+                    frame += pack('h', each_value)  
+                elif dataType == 0x4:                   # int8 1 byte
+                    frame += pack('b', each_value)  
+                elif dataType == 0x5:                   # double 8 bytes
+                    frame += pack('d', each_value)  
+        except TypeError:
+            for each_value in values:
+                if dataType == 0x1:                     # float32 4 bytes
+                    frame += pack('f', each_value)
+                elif dataType == 0x2:                   # int32 4 bytes
+                    frame += pack('i', each_value)   
+                elif dataType == 0x3:                   # int16 2 bytes
+                    frame += pack('h', each_value)  
+                elif dataType == 0x4:                   # int8 1 byte
+                    frame += pack('b', each_value)  
+                elif dataType == 0x5:                   # double 8 bytes
+                    frame += pack('d', each_value)  
                     
         return(frame)
             
