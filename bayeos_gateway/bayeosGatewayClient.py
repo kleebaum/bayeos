@@ -4,7 +4,24 @@ from struct import pack, unpack
 from _socket import gethostname
 from time import sleep
 
+class BayEOSType():
+    def __init__(self, hexCode=0x1, name=''):
+        pass
+
 class BayEOS():
+    
+    global dataTypeDict, frameTypeDict 
+    
+    dataTypeDict = {0x1 : {'value' : 'f', 'valueLength' : 4}, # float32 4 bytes
+                    0x2 : {'value' : 'i', 'valueLength' : 4}, # int32 4 bytes
+                    0x3 : {'value' : 'h', 'valueLength' : 2}, # int16 2 bytes
+                    0x4 : {'value' : 'b', 'valueLength' : 1}, # int8 1 byte
+                    0x5 : {'value' : 'd', 'valueLength' : 8}} # double 8 bytes
+    
+    #frameTypeDict = {0x1: {'type' : 'DataFrame', 
+     #                      'value' : self.parseDataFrame(frame)}}
+
+    
     def createDataFrame(self, values, valueType=0x1, offset=0):
         """
         Creates a BayEOS Data Frame.
@@ -12,38 +29,22 @@ class BayEOS():
         @param valueType: defines Offset and Data Types
         @param offset: length of Channel Offset (if Offset Type is 0x0)
         @return Data Frame as a binary string
-        """
+        """       
         frame = pack('bb', 0x1, valueType)          # 0x1 represents data frame 
         offsetType = (0xf0 & valueType)             # first four bits of frame type
         dataType = (0x0f & valueType)               # last four bits of frame type    
+        v = dataTypeDict[dataType]['value']
         if offsetType == 0x0:                       # data frame with channel offset
                 frame += pack('b', offset)          # 1 byte channel offset
         try:
             for [key, each_value] in values:
-                if offsetType == 0x40:                  # data frame with channel indices
+                if offsetType == 0x40:              # data frame with channel indices
                     frame += pack('b', key)
-                if dataType == 0x1:                     # float32 4 bytes
-                    frame += pack('f', each_value)
-                elif dataType == 0x2:                   # int32 4 bytes
-                    frame += pack('i', each_value)   
-                elif dataType == 0x3:                   # int16 2 bytes
-                    frame += pack('h', each_value)  
-                elif dataType == 0x4:                   # int8 1 byte
-                    frame += pack('b', each_value)  
-                elif dataType == 0x5:                   # double 8 bytes
-                    frame += pack('d', each_value)  
+                frame += pack(v, each_value)
+
         except TypeError:
             for each_value in values:
-                if dataType == 0x1:                     # float32 4 bytes
-                    frame += pack('f', each_value)
-                elif dataType == 0x2:                   # int32 4 bytes
-                    frame += pack('i', each_value)   
-                elif dataType == 0x3:                   # int16 2 bytes
-                    frame += pack('h', each_value)  
-                elif dataType == 0x4:                   # int8 1 byte
-                    frame += pack('b', each_value)  
-                elif dataType == 0x5:                   # double 8 bytes
-                    frame += pack('d', each_value)  
+                frame += pack(v, each_value) 
                     
         return(frame)
             
@@ -119,6 +120,9 @@ class BayEOS():
         valueType = unpack('=b', frame[1:2])[0]
         offsetType = 0xf0 & valueType
         dataType = 0x0f & valueType
+        v = dataTypeDict[dataType]['value']
+        vl = dataTypeDict[dataType]['valueLength']
+        print v + str(vl)
         pos = 2
         key = 0
         res = {}
@@ -131,21 +135,8 @@ class BayEOS():
                 pos += 1
             else:
                 key += 1
-            if dataType == 0x1:
-                value = unpack('=f', frame[pos:pos+4])[0]
-                pos += 4
-            elif dataType == 0x2:
-                value = unpack('=i', frame[pos:pos+4])[0]
-                pos += 4 
-            elif dataType == 0x3:
-                value = unpack('=h', frame[pos:pos+2])[0]
-                pos += 2   
-            elif dataType == 0x4:
-                value = unpack('=b', frame[pos:pos+1])[0]
-                pos += 1   
-            elif dataType == 0x5:
-                value = unpack('=d', frame[pos:pos+4])[0]
-                pos += 8      
+            value = unpack('=' + v, frame[pos:pos+vl])[0]
+            pos += vl            
             res[key] = value
         return res        
     
@@ -275,6 +266,7 @@ class BayEOSWriter():
         else:     
             dataFrame = self.bayeos.createDataFrame(values, valueType, offset)       
             self.saveOriginFrame(origin, dataFrame, ts)
+            print "origin Frame saved"
         
 class BayEOSSender():
     def __init__(self, path, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1.9'):
@@ -534,8 +526,8 @@ class BayEOSGatewayClient():
         exit("No readData() found! Method has to be implemented.\n")
         return(False)
      
-    def saveData(self, data):
+    def saveData(self, data, origin=''):
         """
         Method called by run(). Can be overwritten by implementation (e.g. to store routed frames).
         """   
-        self.writer.save(data, self.getOption('data_type'))  
+        self.writer.save(data, self.getOption('data_type'), origin=origin)  
