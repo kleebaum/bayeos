@@ -399,19 +399,26 @@ class BayEOSGatewayClient():
         Name is used for storage directory e.g. /tmp/Fifo.0.
         @param options: dictionary of options. Three forms are possible.
         """
+        if not isinstance(names, list):
+            names = names.split(', ')
         if len(set(names)) < len(names):
             exit('Duplicate names detected.')
         if len(names) == 0:
             exit('No name given.')
 
         prefix = ''
-        if not 'sender' in options1:
-            prefix = gethostname() + '/'
-        elif not isarray(options1['sender']) and len(names) > 1:
-            prefix = options1['sender'] + '/'
-            del options1['sender']
-        for i in range(0, len(names)):
-            senderDefaults = {}
+        try:
+            options1['sender']
+            if not isinstance(options1['sender'], list) and len(names) > 1:
+                prefix = options1['sender'] + '/'
+                del options1['sender']
+            else:
+                options1['sender'] = '_'.join(options1['sender'])
+        except KeyError:
+            prefix = gethostname() + '/'  # use hostname if no sender specified
+        print prefix
+        senderDefaults = {}
+        for i in range(0, len(names)):            
             senderDefaults[i] = prefix + names[i]
             
         defaults = {'writer_sleep_time' : 20,
@@ -419,8 +426,7 @@ class BayEOSGatewayClient():
                     'max_time' : 60,
                     'data_type' : 0x1,
                     'sender_sleep_time' : 15,
-                    #'sender' : senderDefaults,
-                    'sender' : 'anja',
+                    'sender' : senderDefaults,
                     'bayeosgateway_user' : 'import',
                     'bayeosgateway_version' : '1.9',
                     'absolute_time' : True,
@@ -456,19 +462,19 @@ class BayEOSGatewayClient():
             self.options[key]
         except KeyError:
             return default
-        finally:
-            return self.options[key]
-#             if isarray(self.options[key]):
-#                 if isset(self.options[key][self.i]):
-#                     return self.options[key][self.i]
-#                 if isset(self.options[key][self.name]):
-#                     return self.options[key][self.name]
+        if isinstance(self.options[key], dict):
+            try:
+                self.options[key][self.i]
+            except AttributeError or KeyError:
+                return default
+            return self.options[key][self.i]               
+        return self.options[key]
         
     def run(self):
         """
         Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name.
         """
-        for i in range(0, len(self.names)):
+        for i in range(0, len(self.names)):            
             self.i = i
             self.name = self.names[i]
             path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+', '_', self.name)
@@ -533,7 +539,3 @@ class BayEOSGatewayClient():
         Method called by run(). Can be overwritten by implementation (e.g. to store routed frames).
         """   
         self.writer.save(data, self.getOption('data_type'))  
-
-def isarray(var):
-    return isinstance(var, (list, tuple))
-
