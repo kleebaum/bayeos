@@ -12,14 +12,24 @@ class BayEOS():
     
     global dataTypeDict, frameTypeDict 
     
-    dataTypeDict = {0x1 : {'value' : 'f', 'valueLength' : 4}, # float32 4 bytes
-                    0x2 : {'value' : 'i', 'valueLength' : 4}, # int32 4 bytes
-                    0x3 : {'value' : 'h', 'valueLength' : 2}, # int16 2 bytes
-                    0x4 : {'value' : 'b', 'valueLength' : 1}, # int8 1 byte
-                    0x5 : {'value' : 'd', 'valueLength' : 8}} # double 8 bytes
+    dataTypeDict = {    0x1 : {'value' : 'f', 'valueLength' : 4}, # float32 4 bytes
+                        0x2 : {'value' : 'i', 'valueLength' : 4}, # int32 4 bytes
+                        0x3 : {'value' : 'h', 'valueLength' : 2}, # int16 2 bytes
+                        0x4 : {'value' : 'b', 'valueLength' : 1}, # int8 1 byte
+                        0x5 : {'value' : 'd', 'valueLength' : 8}} # double 8 bytes
     
-    #frameTypeDict = {0x1: {'type' : 'DataFrame', 
-     #                      'value' : self.parseDataFrame(frame)}}
+    frameTypeDict = {   0x1: {'name' : 'DataFrame'},
+                        0x2: {'name' : 'Command'},
+                        0x3: {'name' : 'CommandResponse'},
+                        0x4: {'name' : 'Message'},
+                        0x5: {'name' : 'ErrorMessage'},
+                        0x6: {'name' : 'RoutedFrame'},
+                        0x7: {'name' : 'DelayedFrame'},
+                        0x8: {'name' : 'RoutedFrameRSSI'},
+                        0x9: {'name' : 'TimestampFrame'},
+                        0xa: {'name' : 'Binary'},
+                        0xb: {'name' : 'OriginFrame'},
+                        0xc: {'name' : 'TimestampFrame'}}
 
     
     def createDataFrame(self, values, valueType=0x1, offset=0):
@@ -61,45 +71,26 @@ class BayEOS():
             ts = time.time()
         frameType = unpack('=b', frame[0:1])[0]
         res = {}
+        res['type'] = frameTypeDict[frameType]['name']
         if frameType == 0x1:
-            res['type'] = 'DataFrame'
             res['value'] = self.parseDataFrame(frame)
         elif frameType == 0x2:
-            res['type'] = 'Command'
             res['cmd'] = unpack('=b', frame[1:2])[0]
             res['value'] = frame[2:]
         elif frameType == 0x3:
-            res['type'] = 'CommandResponse'
             res['cmd'] = unpack('=b', frame[1:2])[0]
             res['value'] = frame[2:]
         elif frameType == 0x4:
-            res['type'] = 'Message'
             res['value'] = frame[1:]
         elif frameType == 0x5:
-            res['type'] = 'ErrorMessage'
-            res['value'] = frame[1:]
-        elif frameType == 0x6:
-            res['type'] = 'RoutedFrame'
-            
-        elif frameType == 0x7:
-            res['type'] = 'DelayedFrame'
-        elif frameType == 0x8:
-            res['type'] = 'RoutedFrameRSSI'
-        elif frameType == 0x9:
-            res['type'] = 'TimestampFrame'
-            #ts 
+            res['value'] = frame[1:]            
         elif frameType == 0xa:
-            res['type'] = 'Binary'
             res['pos'] = unpack('=f', frame[1:5])[0]
             res['value'] = frame[5:]
-        elif frameType == 0xb:
-            res['type'] = 'OriginFrame'
         elif frameType == 0xc:
-            res['type'] = 'TimestampFrame'
             ts = unpack('=d', frame[1:9])[0]
             return self.parseFrame(frame[9:], ts, origin, rssi)
         else:
-            res['type'] = 'Unknown'
             res['value'] = frame
         if ts:
             res['ts'] = ts
@@ -122,7 +113,6 @@ class BayEOS():
         dataType = 0x0f & valueType
         v = dataTypeDict[dataType]['value']
         vl = dataTypeDict[dataType]['valueLength']
-        print v + str(vl)
         pos = 2
         key = 0
         res = {}
