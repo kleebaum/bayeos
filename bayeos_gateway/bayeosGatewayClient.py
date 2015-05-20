@@ -1,37 +1,30 @@
-import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re, sys
+import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re
 from posix import chdir, rename
 from struct import pack, unpack
 from _socket import gethostname
 from time import sleep
 
-class BayEOSType():
-    def __init__(self, hexCode=0x1, name=''):
-        pass
-
-class BayEOS():
-    
-    global dataTypeDict, frameTypeDict 
-    
-    dataTypeDict = {    0x1 : {'value' : 'f', 'valueLength' : 4}, # float32 4 bytes
+dataTypeDict = {    0x1 : {'value' : 'f', 'valueLength' : 4}, # float32 4 bytes
                         0x2 : {'value' : 'i', 'valueLength' : 4}, # int32 4 bytes
                         0x3 : {'value' : 'h', 'valueLength' : 2}, # int16 2 bytes
                         0x4 : {'value' : 'b', 'valueLength' : 1}, # int8 1 byte
                         0x5 : {'value' : 'd', 'valueLength' : 8}} # double 8 bytes
     
-    frameTypeDict = {   0x1: {'name' : 'DataFrame'},
-                        0x2: {'name' : 'Command'},
-                        0x3: {'name' : 'CommandResponse'},
-                        0x4: {'name' : 'Message'},
-                        0x5: {'name' : 'ErrorMessage'},
-                        0x6: {'name' : 'RoutedFrame'},
-                        0x7: {'name' : 'DelayedFrame'},
-                        0x8: {'name' : 'RoutedFrameRSSI'},
-                        0x9: {'name' : 'TimestampFrame'},
-                        0xa: {'name' : 'Binary'},
-                        0xb: {'name' : 'OriginFrame'},
-                        0xc: {'name' : 'TimestampFrame'}}
+frameTypeDict = {   0x1: {'name' : 'DataFrame'},
+                    0x2: {'name' : 'Command'},
+                    0x3: {'name' : 'CommandResponse'},
+                    0x4: {'name' : 'Message'},
+                    0x5: {'name' : 'ErrorMessage'},
+                    0x6: {'name' : 'RoutedFrame'},
+                    0x7: {'name' : 'DelayedFrame'},
+                    0x8: {'name' : 'RoutedFrameRSSI'},
+                    0x9: {'name' : 'TimestampFrame'},
+                    0xa: {'name' : 'Binary'},
+                    0xb: {'name' : 'OriginFrame'},
+                    0xc: {'name' : 'TimestampFrame'}}
 
-    
+class BayEOS():
+       
     def createDataFrame(self, values, valueType=0x1, offset=0):
         """
         Creates a BayEOS Data Frame.
@@ -370,6 +363,8 @@ class BayEOSSender():
                 exit('URL ' + self.url + ' is invalid.\n')  
             else:
                 exit('Post error: ' + str(e) + '.\n')
+        except urllib2.URLError as e:
+            exit('URLError: ' + str(e))
         return 0
 
 class BayEOSGatewayClient():
@@ -391,11 +386,12 @@ class BayEOSGatewayClient():
         prefix = ''
         try:
             options1['sender']
-            if not isinstance(options1['sender'], list) and len(names) > 1:
+            if isinstance(options1['sender'], list):
+                options1['sender'] = '_'.join(options1['sender'])
+            if len(names) > 1:
                 prefix = options1['sender'] + '/'
                 del options1['sender']
-            else:
-                options1['sender'] = '_'.join(options1['sender'])
+                
         except KeyError:
             prefix = gethostname() + '/'  # use hostname if no sender specified
         print prefix

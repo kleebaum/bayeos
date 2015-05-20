@@ -1,5 +1,6 @@
 import ConfigParser
-from bayeos_gateway.bayeosGatewayClient import isset, BayEOSGatewayClient
+from bayeos_gateway.bayeosGatewayClient import BayEOSGatewayClient
+from random import randint
 
 def isset(var):
     return var in locals() or var in globals()
@@ -16,13 +17,20 @@ else:
     
 if not config.has_option('Sender', 'sender'):
     config.set('Sender', 'sender', names)
-    
-print names
-  
+
+options = {}
+for section in config.sections():
+    for key, val in config.items(section):
+        options[key] = val
+
+print options
+
+
 class RasperryPi(BayEOSGatewayClient):
     
     def readData(self):
-        return BayEOSGatewayClient.readData(self)
+        return (randint(-1,1), 3, 4)
+   
     
-myClient = RasperryPi(names)
-#myClient.run()
+myClient = RasperryPi(names, options)
+myClient.run()

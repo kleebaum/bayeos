@@ -1,5 +1,6 @@
 from bayeos_gateway.bayeosGatewayClient import BayEOSWriter, BayEOSSender, BayEOS
 
+
 def main():
     bayeos = BayEOS()
     
