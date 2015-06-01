@@ -399,11 +399,11 @@ class BayEOSGatewayClient():
         for i in range(0, len(names)):            
             senderDefaults[i] = prefix + names[i]
             
-        defaults = {'writer_sleep_time' : 20,
+        defaults = {'writer_sleep_time' : 200,
                     'max_chunk' : 5000,
                     'max_time' : 60,
                     'data_type' : 0x1,
-                    'sender_sleep_time' : 15,
+                    'sender_sleep_time' : 1500,
                     'sender' : senderDefaults,
                     'bayeosgateway_user' : 'import',
                     'bayeosgateway_version' : '1.9',

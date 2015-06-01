@@ -25,11 +25,38 @@ for section in config.sections():
 
 print options
 
+gpio = {15 : 0, 17 : 0, 18 : 0, 22 : 0, 23 : 0, 24 : 0, 25 : 0}
+found = True
+
+# for i in range(0, 10):    
+#     for eachGpio in gpio:
+#         if gpio[eachGpio] == 1:
+#             gpio[eachGpio] = 0
+#             found = True
+#         elif found == True:
+#             gpio[eachGpio] = 1
+#             found = False    
+#     print gpio
 
 class RasperryPi(BayEOSGatewayClient):
+
     
     def readData(self):
-        return (randint(-1,1), 3, 4)
+        if self.i == 0:
+            tFile = open("/sys/class/thermal/thermal_zone1/temp")
+            temp = int(tFile.read()) / 1000
+            tFile.close()
+            return [temp]
+        if self.i == 1:
+            global found
+            for eachGpio in gpio:
+                if gpio[eachGpio] == 1:
+                    gpio[eachGpio] = 0
+                    found = True
+                elif found == True:
+                    gpio[eachGpio] = 1
+                    found = False
+            return gpio.items()
    
     
 myClient = RasperryPi(names, options)
