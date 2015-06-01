@@ -1,6 +1,8 @@
 import ConfigParser
 from bayeos_gateway.bayeosGatewayClient import BayEOSGatewayClient
 from random import randint
+import time
+from time import sleep
 
 def isset(var):
     return var in locals() or var in globals()
@@ -58,6 +60,33 @@ class RasperryPi(BayEOSGatewayClient):
                     found = False
             return gpio.items()
    
-    
-myClient = RasperryPi(names, options)
-myClient.run()
+
+# Dauerschleife
+adr=1   # Adresse reserviert 0 fuer Spuelen
+
+while 1:  
+    #address(0)               # "Spueladresse anlegen"
+    #GPIO.output(DATA,1);     # Data auf 1 fuer Spuelen setzen
+    #enable()                 # Data auf Adresse uebenehmen
+    print "adr: %d - %d" % (0,1)
+    time.sleep(60)            # 60 Sekunden spuelen
+    #GPIO.output(DATA,0);     # Spuelvorgang beenden
+    #enable()                 # Data auf Adresse uebenehmen
+    print "adr: %d - %d" % (0,0)
+    #address(adr)             # "Spueladresse anlegen"
+    #GPIO.output(DATA,1);     # Data auf 1
+    #enable()                 # Data auf Adresse uebenehmen
+    print "adr: %d - %d" % (adr,1)
+    time.sleep(300)           # 60 Sekunden warten, 240 Sekunden Messen
+    #GPIO.output(DATA,0);     # Data auf 0
+    #enable()                 # Data auf Adresse uebenehmen
+    print "adr: %d - %d" % (adr,0)
+
+    adr+=1
+
+    if(adr>15):
+        adr=1
+
+
+#myClient = RasperryPi(names, options)
+#myClient.run()
