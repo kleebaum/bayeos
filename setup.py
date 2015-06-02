@@ -6,9 +6,10 @@ except ImportError as ierr:
 
 setup(  name = 'bayeos_gateway',
         version = '0.1',
-        packages = ['bayeos_gateway'],
+        packages = ['bayeos_gateway', 'raspberryPi_py'],
         description = 'Module for writing data frames and sending them to a BayEOS gateway',
         author = 'Anja Kleebaum',
         author_email = 'Anja.Kleebaum@stmail.uni-bayreuth.de',
-        license='GPL2',
-        package_dir = {})
+        license = 'GPL2',
+        keywords = 'bayeos gateway client',
+        classifiers = ["Programming Language :: Python"])
