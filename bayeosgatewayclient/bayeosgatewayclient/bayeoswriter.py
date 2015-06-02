@@ -1,5 +1,5 @@
 from time import sleep
-from bayeosGatewayClient import BayEOSWriter
+from .bayeosgatewayclient import BayEOSWriter
 
 """Creates an example writer."""
 path = '/tmp/bayeos-device1/'

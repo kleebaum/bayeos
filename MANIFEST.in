@@ -1,2 +1,1 @@
-include raspberryPi_py/raspberryPi.ini
-recursive-include *.ini
+recursive-include raspberryPi_py *.ini
