@@ -9,4 +9,6 @@ setup(  name = 'bayeos_gateway',
         packages = ['bayeos_gateway'],
         description = 'Module for writing data frames and sending them to a BayEOS gateway',
         author = 'Anja Kleebaum',
-        author_email = 'Anja.Kleebaum@stmail.uni-bayreuth.de')
+        author_email = 'Anja.Kleebaum@stmail.uni-bayreuth.de',
+        license='GPL2',
+        package_dir = {})
