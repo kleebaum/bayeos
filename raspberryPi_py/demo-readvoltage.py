@@ -33,7 +33,11 @@ while (True):
     print ("Channel 1: %02f" % adc.read_voltage(1))
     print ("Channel 2: %02f" % adc.read_voltage(2))
     print ("Channel 3: %02f" % adc.read_voltage(3))
-    print ("Channel 4: %02f" % adc.read_voltage(5))
+    print ("Channel 4: %02f" % adc.read_voltage(4))
+    print ("Channel 1: %02f" % adc.read_voltage(5))
+    print ("Channel 2: %02f" % adc.read_voltage(6))
+    print ("Channel 3: %02f" % adc.read_voltage(7))
+    print ("Channel 4: %02f" % adc.read_voltage(8))
  
     # wait 0.5 seconds before reading the pins again
     time.sleep(0.5)
