@@ -1,3 +1,5 @@
+"""bayeosgatewayclient"""
+
 import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re
 from posix import chdir, rename
 from struct import pack, unpack

@@ -3,13 +3,18 @@ from bayeosgatewayclient.bayeosgatewayclient import BayEOSGatewayClient
 from random import randint
 import time
 from time import sleep
+#from bayeosraspberrypi import *
+import os
 
 def isset(var):
     return var in locals() or var in globals()
 
+this_dir, this_filename = os.path.split(__file__)
+DATA_PATH = os.path.join(this_dir, "raspberryPi.ini")
+
 config = ConfigParser.ConfigParser()
 try:
-    config.read("./raspberryPi.ini")
+    config.read(DATA_PATH)
     if not config.has_option('Special', 'names'):
         for i in range(0, len(config.get('Special', 'host').split(','))):
             names = {}
