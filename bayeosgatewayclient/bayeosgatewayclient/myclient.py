@@ -1,4 +1,4 @@
-from .bayeosgatewayclient import BayEOSGatewayClient
+from bayeosgatewayclient import BayEOSGatewayClient
 from random import randint
 
 options = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',

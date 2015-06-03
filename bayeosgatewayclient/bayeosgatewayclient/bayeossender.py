@@ -1,5 +1,5 @@
 from time import sleep
-from .bayeosgatewayclient import BayEOSSender
+from bayeosgatewayclient import BayEOSSender
 
 """Creates an example sender."""
 path = '/tmp/bayeos-device1/'

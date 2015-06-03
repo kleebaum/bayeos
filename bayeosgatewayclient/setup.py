@@ -15,4 +15,4 @@ setup(
     author_email='Anja.Kleebaum@stmail.uni-bayreuth.de',
     license='GPL2',
     keywords='bayeos gateway client',
-    classifiers=["Programming Language :: Python"])
+    classifiers=['Programming Language :: Python'])
