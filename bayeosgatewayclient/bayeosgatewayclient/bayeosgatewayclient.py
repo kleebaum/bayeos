@@ -6,27 +6,27 @@ from struct import pack, unpack
 from _socket import gethostname
 from time import sleep
 
-dataTypeDict = {    0x1 : {'value' : 'f', 'valueLength' : 4}, # float32 4 bytes
-                        0x2 : {'value' : 'i', 'valueLength' : 4}, # int32 4 bytes
-                        0x3 : {'value' : 'h', 'valueLength' : 2}, # int16 2 bytes
-                        0x4 : {'value' : 'b', 'valueLength' : 1}, # int8 1 byte
-                        0x5 : {'value' : 'd', 'valueLength' : 8}} # double 8 bytes
-    
-frameTypeDict = {   0x1: {'name' : 'DataFrame'},
-                    0x2: {'name' : 'Command'},
-                    0x3: {'name' : 'CommandResponse'},
-                    0x4: {'name' : 'Message'},
-                    0x5: {'name' : 'ErrorMessage'},
-                    0x6: {'name' : 'RoutedFrame'},
-                    0x7: {'name' : 'DelayedFrame'},
-                    0x8: {'name' : 'RoutedFrameRSSI'},
-                    0x9: {'name' : 'TimestampFrame'},
-                    0xa: {'name' : 'Binary'},
-                    0xb: {'name' : 'OriginFrame'},
-                    0xc: {'name' : 'TimestampFrame'}}
+DATA_TYPES = {0x1 : {'value' : 'f', 'valueLength' : 4},  # float32 4 bytes
+              0x2 : {'value' : 'i', 'valueLength' : 4},  # int32 4 bytes
+              0x3 : {'value' : 'h', 'valueLength' : 2},  # int16 2 bytes
+              0x4 : {'value' : 'b', 'valueLength' : 1},  # int8 1 byte
+              0x5 : {'value' : 'd', 'valueLength' : 8}}  # double 8 bytes
+
+FRAME_TYPES = {0x1: {'name' : 'DataFrame'},
+               0x2: {'name' : 'Command'},
+               0x3: {'name' : 'CommandResponse'},
+               0x4: {'name' : 'Message'},
+               0x5: {'name' : 'ErrorMessage'},
+               0x6: {'name' : 'RoutedFrame'},
+               0x7: {'name' : 'DelayedFrame'},
+               0x8: {'name' : 'RoutedFrameRSSI'},
+               0x9: {'name' : 'TimestampFrame'},
+               0xa: {'name' : 'Binary'},
+               0xb: {'name' : 'OriginFrame'},
+               0xc: {'name' : 'TimestampFrame'}}
 
 class BayEOS():
-       
+
     def createDataFrame(self, values, valueType=0x1, offset=0):
         """
         Creates a BayEOS Data Frame.
@@ -34,25 +34,25 @@ class BayEOS():
         @param valueType: defines Offset and Data Types
         @param offset: length of Channel Offset (if Offset Type is 0x0)
         @return Data Frame as a binary string
-        """       
-        frame = pack('bb', 0x1, valueType)          # 0x1 represents data frame 
-        offsetType = (0xf0 & valueType)             # first four bits of frame type
-        dataType = (0x0f & valueType)               # last four bits of frame type    
-        v = dataTypeDict[dataType]['value']
-        if offsetType == 0x0:                       # data frame with channel offset
-                frame += pack('b', offset)          # 1 byte channel offset
+        """
+        frame = pack('bb', 0x1, valueType)  # 0x1 represents data frame
+        offsetType = (0xf0 & valueType)  # first four bits of frame type
+        dataType = (0x0f & valueType)  # last four bits of frame type
+        v = DATA_TYPES[dataType]['value']
+        if offsetType == 0x0:  # data frame with channel offset
+            frame += pack('b', offset)  # 1 byte channel offset
         try:
             for [key, each_value] in values:
-                if offsetType == 0x40:              # data frame with channel indices
+                if offsetType == 0x40:  # data frame with channel indices
                     frame += pack('b', key)
                 frame += pack(v, each_value)
 
         except TypeError:
             for each_value in values:
-                frame += pack(v, each_value) 
-                    
-        return(frame)
-            
+                frame += pack(v, each_value)
+
+        return frame
+
     def parseFrame(self, frame, ts=False, origin='', rssi=False):
         """
         Parses a binary coded BayEOS Frame into a Python dictionary.
@@ -66,7 +66,7 @@ class BayEOS():
             ts = time.time()
         frameType = unpack('=b', frame[0:1])[0]
         res = {}
-        res['type'] = frameTypeDict[frameType]['name']
+        res['type'] = FRAME_TYPES[frameType]['name']
         if frameType == 0x1:
             res['value'] = self.parseDataFrame(frame)
         elif frameType == 0x2:
@@ -78,7 +78,7 @@ class BayEOS():
         elif frameType == 0x4:
             res['value'] = frame[1:]
         elif frameType == 0x5:
-            res['value'] = frame[1:]            
+            res['value'] = frame[1:]
         elif frameType == 0xa:
             res['pos'] = unpack('=f', frame[1:5])[0]
             res['value'] = frame[5:]
@@ -93,8 +93,8 @@ class BayEOS():
             res['origin'] = origin
         if rssi:
             res['rssi'] = rssi
-        return(res)
-            
+        return res
+
     def parseDataFrame(self, frame):
         """
         Parses a binary coded BayEOS Data Frame into a Python dictionary.
@@ -106,28 +106,28 @@ class BayEOS():
         valueType = unpack('=b', frame[1:2])[0]
         offsetType = 0xf0 & valueType
         dataType = 0x0f & valueType
-        v = dataTypeDict[dataType]['value']
-        vl = dataTypeDict[dataType]['valueLength']
+        v = DATA_TYPES[dataType]['value']
+        vl = DATA_TYPES[dataType]['valueLength']
         pos = 2
         key = 0
         res = {}
         if offsetType == 0x0:
-            key = unpack('=b', frame[2:3])[0] # offset
+            key = unpack('=b', frame[2:3])[0]  # offset
             pos += 1
-        while(pos < len(frame)):
+        while pos < len(frame):
             if offsetType == 0x40:
-                key = unpack('=b', frame[pos:pos+1])[0]
+                key = unpack('=b', frame[pos:pos + 1])[0]
                 pos += 1
             else:
                 key += 1
-            value = unpack('=' + v, frame[pos:pos+vl])[0]
-            pos += vl            
+            value = unpack('=' + v, frame[pos:pos + vl])[0]
+            pos += vl
             res[key] = value
-        return res        
-    
+        return res
+
 class BayEOSWriter():
     def __init__(self, path, maxChunk=5000, maxTime=60):
-        """ 
+        """
         Constructor for a BayEOSWriter instance.
         @param path: path of queue directory
         @param maxChunk: maximum file size when a new file is started
@@ -140,15 +140,15 @@ class BayEOSWriter():
             try:
                 os.mkdir(self.path, 0700)
             except OSError as e:
-                print('OSError: ' + str(e))                
+                print 'OSError: ' + str(e)
         chdir(self.path)
         files = glob.glob('*')
         for eachFile in files:
-            if string.find(eachFile, '.act'):    # Rename active file 
+            if string.find(eachFile, '.act'):  # Rename active file
                 rename(eachFile, eachFile.replace('.act', '.rd'))
         self.startNewFile()
         self.bayeos = BayEOS()
-        
+
     def saveDataFrame(self, values, valueType=0x1, offset=0, ts=0):
         """
         Writes a Data Frame to the buffer.
@@ -158,7 +158,7 @@ class BayEOSWriter():
         @param ts: Unix epoch time stamp, if zero system time is used
         """
         self.saveFrame(self.bayeos.createDataFrame(values, valueType, offset), ts)
-    
+
     def saveCommandFrame(self, cmdType, command, ts=0):
         """
         Saves Command Frame.
@@ -166,8 +166,8 @@ class BayEOSWriter():
         @param command: instruction for receiver
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x2) + pack('b', cmdType) + command, ts)  
-        
+        self.saveFrame(pack('b', 0x2) + pack('b', cmdType) + command, ts)
+
     def saveCommandResponseFrame(self, cmdType, commandRes, ts=0):
         """
         Saves Command Response Frame.
@@ -175,8 +175,8 @@ class BayEOSWriter():
         @param commandRes: response of receiver
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x3) + pack('b', cmdType) + commandRes, ts)    
-        
+        self.saveFrame(pack('b', 0x3) + pack('b', cmdType) + commandRes, ts)
+
     def saveMessage(self, string, ts=0):
         """
         Saves message.
@@ -184,15 +184,15 @@ class BayEOSWriter():
         @param ts: Unix epoch time stamp, if zero system time is used
         """
         self.saveFrame(pack('b', 0x4) + string, ts)
-        
+
     def saveErrorMessage(self, string, ts=0):
         """
         Saves error message.
         @param sting: message to save
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x5) + string, ts)         
-        
+        self.saveFrame(pack('b', 0x5) + string, ts)
+
     def saveRoutedFrame(self, myId, panId, frame, ts=0):
         """
         Saves routed frame.
@@ -212,7 +212,11 @@ class BayEOSWriter():
         @param frame: must be a valid BayEOS frame
         @param ts: Unix epoch time stamp, if zero system time is used
         """
-        self.saveFrame(pack('b', 0x8) + pack('h', myId) + pack('h', panId) + pack('b', rssi) + frame, ts)     
+        self.saveFrame(pack('b', 0x8) +
+                       pack('h', myId) +
+                       pack('h', panId) +
+                       pack('b', rssi) +
+                       frame, ts)
 
     def saveOriginFrame(self, origin, frame, ts=0):
         """
@@ -227,7 +231,7 @@ class BayEOSWriter():
     def saveFrame(self, frame, ts=0):
         """Save Timestamp Frame to file. This is a base function.
         @param frame: must be a valid BayEOS Frame
-        @param ts: Unix epoch time stamp, if zero system time is used 
+        @param ts: Unix epoch time stamp, if zero system time is used
         """
         if not ts:
             ts = time.time()
@@ -236,25 +240,26 @@ class BayEOSWriter():
             self.fp.close()
             rename(self.currentName + '.act', self.currentName + '.rd')
             self.startNewFile()
-    
+
     def startNewFile(self):
-        """ Opens a new file with ending .act and determines current file name. """ 
+        """Opens a new file with ending .act and determines current file name."""
         self.currentTs = time.time()
         [sec, usec] = string.split(str(self.currentTs), '.')
         self.currentName = sec + '-' + usec
         self.fp = open(self.currentName + '.act', 'wb')
-    
+
     def save(self, values, valueType=0x1, offset=0, ts=0, origin=''):
-        """ Generic frame saving method. """ 
+        """Generic frame saving method."""
         if not origin:
             self.saveDataFrame(values, valueType, offset, ts)
-        else:     
-            dataFrame = self.bayeos.createDataFrame(values, valueType, offset)       
+        else:
+            dataFrame = self.bayeos.createDataFrame(values, valueType, offset)
             self.saveOriginFrame(origin, dataFrame, ts)
             print "origin Frame saved"
-        
+
 class BayEOSSender():
-    def __init__(self, path, name, url, pw, user='import', absoluteTime=True, rm=True, gatewayVersion='1.9'):
+    def __init__(self, path, name, url, pw, user='import',
+                 absoluteTime=True, rm=True, gatewayVersion='1.9'):
         """
         Constructor for BayEOSSender instance.
         @param path: path where BayEOSWriter puts files
@@ -278,8 +283,9 @@ class BayEOSSender():
         self.gatewayVersion = gatewayVersion
         self.lengthOfDouble = len(pack('d', time.time()))
         self.lengthOfShort = len(pack('h', 1))
-        self.ref = time.time()-(datetime.datetime(2000,1,1)-datetime.datetime(1970,1,1)).total_seconds()
-    
+        self.ref = time.time() - (datetime.datetime(2000, 1, 1) -
+                                  datetime.datetime(1970, 1, 1)).total_seconds()
+
     def send(self):
         """
         Keeps sending until all files are sent or an error occurs.
@@ -287,11 +293,11 @@ class BayEOSSender():
         """
         count = 0
         post = self.sendFile()
-        while(post):
+        while post:
             count += post
             post = self.sendFile()
-        return(count)
-    
+        return count
+
     def sendFile(self):
         """
         Reads one file from queue and tries to send it to the gateway.
@@ -303,28 +309,29 @@ class BayEOSSender():
         files = glob.glob('*.rd')
         if len(files) == 0:
             return 0
-        fp = open(files[0], 'rb')       # opens oldest file
+        fp = open(files[0], 'rb')  # opens oldest file
         data = '&sender=' + urllib.quote_plus(self.name)
         frames = ''
         count = 0
         ts = fp.read(self.lengthOfDouble)
-        while ts:                       # until end of file
+        while ts:  # until end of file
             ts = unpack('=d', ts)[0]
             frameLength = unpack('=h', fp.read(self.lengthOfShort))[0]
             frame = fp.read(frameLength)
             if frame:
                 count += 1
-                if self.absoluteTime:   # Timestamp Frame
-                    if self.gatewayVersion == '1.8':    # second resolution from 2000-01-01
+                if self.absoluteTime:  # Timestamp Frame
+                    if self.gatewayVersion == '1.8':  # second resolution from 2000-01-01
                         timestampFrame = pack('b', 0x9) + pack('l', round(ts - self.ref)) + frame
-                    else:                               # millisecond resolution from 1970-01-01
+                    else:  # millisecond resolution from 1970-01-01
                         timestampFrame = pack('b', 0xc) + pack('q', round(ts * 1000)) + frame
-                else:                   # Delayed Frame
-                    timestampFrame = pack('b', 0x7) + pack('l', round((time.time() - ts) * 1000)) + frame
+                else:  # Delayed Frame
+                    timestampFrame = pack('b', 0x7) + pack('l',
+                                                           round((time.time() - ts) * 1000)) + frame
                 frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestampFrame)
             ts = fp.read(self.lengthOfDouble)
         fp.close()
-        if frames:              # content found for post request
+        if frames:  # content found for post request
             res = self.post(data + frames)
             if res == 1:
                 if self.rm:
@@ -334,14 +341,14 @@ class BayEOSSender():
             elif res == 0:
                 rename(files[0], files[0].replace('.rd', '.bak'))
                 exit('Error posting. File will be kept as ' + str(files[0].replace('.rd', '.bak')))
-            return(count)
-        else:                           # empty file
+            return count
+        else:  # empty file
             if os.stat(files[0]).st_size:
                 rename(files[0], files[0].replace('.rd', '.bak'))
             else:
                 os.remove(files[0])
         return 0
-        
+
     def post(self, data):
         """
         Posts frames to gateway.
@@ -360,9 +367,9 @@ class BayEOSSender():
             return 1
         except urllib2.HTTPError as e:
             if e.code == 401:
-                exit('Authentication failed.\n')    
+                exit('Authentication failed.\n')
             elif e.code == 404:
-                exit('URL ' + self.url + ' is invalid.\n')  
+                exit('URL ' + self.url + ' is invalid.\n')
             else:
                 exit('Post error: ' + str(e) + '.\n')
         except urllib2.URLError as e:
@@ -393,14 +400,14 @@ class BayEOSGatewayClient():
             if len(names) > 1:
                 prefix = options1['sender'] + '/'
                 del options1['sender']
-                
+
         except KeyError:
             prefix = gethostname() + '/'  # use hostname if no sender specified
         print prefix
         senderDefaults = {}
-        for i in range(0, len(names)):            
+        for i in range(0, len(names)):
             senderDefaults[i] = prefix + names[i]
-            
+
         defaults = {'writer_sleep_time' : 200,
                     'max_chunk' : 5000,
                     'max_time' : 60,
@@ -412,25 +419,24 @@ class BayEOSGatewayClient():
                     'absolute_time' : True,
                     'rm' : True,
                     'sleep_between_children' : 0,
-                    'tmp_dir' : tempfile.gettempdir()
-                    }
+                    'tmp_dir' : tempfile.gettempdir()}
         defaults.update(defaults1)
         options = {}
-        
+
         for default in defaults.items():
             try:
                 options1[default[0]]
             except KeyError:
                 print "Option '" + default[0] + "' not set using default: " + str(default[1])
-                options[default[0]] = default[1]            
-        
+                options[default[0]] = default[1]
+
         options.update(options1)
-        
+
         self.names = names
         self.options = options
         self.pid_w = {}
         self.pid_r = {}
-    
+
     def getOption(self, key, default=''):
         """
         Helper function to get an option value.
@@ -447,26 +453,27 @@ class BayEOSGatewayClient():
                 self.options[key][self.i]
             except AttributeError or KeyError:
                 return default
-            return self.options[key][self.i]               
+            return self.options[key][self.i]
         return self.options[key]
-        
+
     def run(self):
         """
         Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name.
         """
-        for i in range(0, len(self.names)):            
+        for i in range(0, len(self.names)):
             self.i = i
             self.name = self.names[i]
-            path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+', '_', self.name)
+            path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+',
+                                                            '_', self.name)
             self.pid_w[i] = os.fork()
             if self.pid_w[i] == -1:
                 exit("Could not fork writer process!")
-            elif self.pid_w[i]:     # Parent
+            elif self.pid_w[i]:  # Parent
                 print "Started writer"
-            else:                   # Child
+            else:  # Child
                 self.initWriter()
-                self.writer = BayEOSWriter(path, 
-                                           self.getOption('max_chunk'), 
+                self.writer = BayEOSWriter(path,
+                                           self.getOption('max_chunk'),
                                            self.getOption('max_time'))
                 while True:
                     data = self.readData()
@@ -476,46 +483,46 @@ class BayEOSGatewayClient():
                         print "readData failed"
                         sleep(self.getOption('writer_sleep_time'))
                 exit()
-                
+
             self.pid_r[i] = os.fork()
             if self.pid_r[i] == -1:
                 exit("Could not fork sender process!")
-            elif self.pid_r[i]:     # Parent
+            elif self.pid_r[i]:  # Parent
                 print "Started sender"
                 sleep(self.getOption('sleep_between_children'))
-            else:                   # Child
-                sender = BayEOSSender(path, 
-                                      self.getOption('sender'), 
+            else:  # Child
+                sender = BayEOSSender(path,
+                                      self.getOption('sender'),
                                       self.getOption('bayeosgateway_url'),
                                       self.getOption('bayeosgateway_pw'),
                                       self.getOption('bayeosgateway_user'),
                                       self.getOption('absolute_time'),
                                       self.getOption('rm'),
                                       self.getOption('bayeosgateway_version'))
-                
+
                 while True:
                     res = sender.send()
                     if res > 0:
-                        print ('Successfully sent ' + str(res) + ' frames.\n')
-                    sleep(self.getOption('sender_sleep_time'))  
-                exit()                 
+                        print 'Successfully sent ' + str(res) + ' frames.\n'
+                    sleep(self.getOption('sender_sleep_time'))
+                exit()
 
 
     def initWriter(self):
         """
         Method called by run(). Can be overwritten by implementation.
         """
-        pass    
+        pass
 
     def readData(self):
         """
         Method called by run(). Must be overwritten by implementation.
         """
         exit("No readData() found! Method has to be implemented.\n")
-        return(False)
-     
+        return False
+
     def saveData(self, data, origin=''):
         """
         Method called by run(). Can be overwritten by implementation (e.g. to store routed frames).
-        """   
-        self.writer.save(data, self.getOption('data_type'), origin=origin)  
+        """
+        self.writer.save(data, self.getOption('data_type'), origin=origin)
