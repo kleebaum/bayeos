@@ -10,7 +10,7 @@ setup(
     name='bayeosgatewayclient',
     version='0.1',
     packages=['bayeosgatewayclient'],
-    description='Module for writing data frames and sending them to a BayEOS gateway',
+    description='A generic Python package to transfer client data to a BayEOS Gateway.',
     author='Anja Kleebaum',
     author_email='Anja.Kleebaum@stmail.uni-bayreuth.de',
     license='GPL2',

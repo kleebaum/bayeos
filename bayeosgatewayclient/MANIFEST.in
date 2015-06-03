@@ -1,1 +1,2 @@
-recursive-include *.md *.ini
+include README.md
+include LICENSE

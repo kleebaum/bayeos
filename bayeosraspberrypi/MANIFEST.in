@@ -1,2 +1,3 @@
 include README.md
-recursive-include bayeosraspberrypi3 *.ini
+include LICENSE
+recursive-include config *.ini
