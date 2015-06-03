@@ -1,4 +1,5 @@
-# bayeos-gateway-py
-Python Library for BayEOS Gateway
+# bayeosraspberrypi
+An implementation for a real BayEOS Gateway Client.
 
-A python module to access a BayEOS Gateway. Runs on Python2 and Python3.
+## Installation
+- Install the package by running ```python setup.py install``` as root
