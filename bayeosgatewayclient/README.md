@@ -28,8 +28,10 @@ coming soon
 - import the module ```import bayeosgatewayclient```
 
 ### Example writer
-```
-from time import sleep
+Run the method ```bayeosgatewayclient.samplewriter()``` to see how the BayEOSWriter class is instantiated.
+
+This is how it works:
+```from time import sleep
 from bayeosgatewayclient import BayEOSWriter
 
 PATH = '/tmp/bayeos-device1/'
@@ -38,8 +40,8 @@ writer = BayEOSWriter(PATH, 100)
 while True:
     print 'adding frame\n'
     writer.save(values=[2.1, 3, 20.5], valueType=0x02, offset=2)
-    writer.saveMessage("Dies ist noch eine weitere Nachricht...")
-    writer.saveErrorMessage("Fehlermeldung")
+    writer.saveMessage("This is a message.")
+    writer.saveErrorMessage("This is an error message.")
     sleep(1)
 ```
 
