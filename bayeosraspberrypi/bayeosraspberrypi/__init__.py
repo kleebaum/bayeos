@@ -4,6 +4,7 @@ from random import randint
 import time
 from time import sleep
 import os
+import RPi.GPIO as GPIO
 
 def isset(var):
     return var in locals() or var in globals()
@@ -34,21 +35,52 @@ for section in config.sections():
 
 print options
 
-gpio = {15 : 0, 17 : 0, 18 : 0, 22 : 0, 23 : 0, 24 : 0, 25 : 0}
-found = True
+# RPi.GPIO Layout verwenden (wie Pin-Nummern)
+GPIO.setmode(GPIO.BOARD)
 
-# for i in range(0, 10):    
-#     for eachGpio in gpio:
-#         if gpio[eachGpio] == 1:
-#             gpio[eachGpio] = 0
-#             found = True
-#         elif found == True:
-#             gpio[eachGpio] = 1
-#             found = False    
-#     print gpio
+#PINS
+ADR=[11,12,13,15,16,18] # GPIO 17, 18, 27, 22, 23, 24
+DATA=24 # GPIO 8
+EN=26   # GPIO 7
+
+#Funktion enable
+# set kurz den Enable Pin und DATA wird in die 
+# gesetzte Adresse uebernommen
+def enable():
+    GPIO.output(EN,GPIO.HIGH);
+#  print "EN is high"
+#  time.sleep(0.0001);
+    GPIO.output(EN,GPIO.LOW);
+#  print "EN is low"
+
+
+def address(a):
+    for i in range(0,6): # ADR[0]=11, ADR[1]=12...
+        GPIO.output(ADR[i],((1<<i) & a)) # binary shift to left (2^i) and 
+        #print str(ADR[i]) + ": " + str((1<<i) & a)
+        # Bsp.: a = 3
+        # Pin 11 = 1
+        # Pin 12 = 2, alle anderen 0
+        
+try:
+    # ADR Output setzen
+    for pin in ADR:
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, GPIO.LOW)
+    
+    GPIO.setup(EN, GPIO.OUT)
+    GPIO.output(EN, GPIO.LOW)
+    
+    GPIO.setup(DATA, GPIO.OUT)
+    GPIO.output(DATA, GPIO.LOW)
+    
+except KeyboardInterrupt:
+    GPIO.cleanup() 
+    
+    # Dauerschleife fuer jeweils 60 s spuelen, 300 s messen
+    adr=1   # Adresse reserviert 0 fuer Spuelen
 
 class RasperryPi(BayEOSGatewayClient):
-
     
     def readData(self):
         if self.i == 0:
@@ -57,15 +89,35 @@ class RasperryPi(BayEOSGatewayClient):
             tFile.close()
             return [temp]
         if self.i == 1:
-            global found
-            for eachGpio in gpio:
-                if gpio[eachGpio] == 1:
-                    gpio[eachGpio] = 0
-                    found = True
-                elif found == True:
-                    gpio[eachGpio] = 1
-                    found = False
-            return gpio.items()
+            try:
+                while 1:  
+                    address(0)               # "Spueladresse anlegen"
+                    GPIO.output(DATA,1);     # Data auf 1 fuer Spuelen setzen
+                    enable()                 # Data auf Adresse uebenehmen
+                    print "adr: %d - %d" % (0,1)
+                    time.sleep(0.6)            # 60 Sekunden spuelen
+                    GPIO.output(DATA,0);     # Spuelvorgang beenden
+                    enable()                 # Data auf Adresse uebenehmen
+                    print "adr: %d - %d" % (0,0)
+                    address(adr)             # "Spueladresse anlegen"
+                    GPIO.output(DATA,1);     # Data auf 1
+                    enable()                 # Data auf Adresse uebenehmen
+                    print "adr: %d - %d" % (adr,1)
+                    time.sleep(3)          # 60 Sekunden warten, 240 Sekunden Messen
+                    GPIO.output(DATA,0);     # Data auf 0
+                    enable()                 # Data auf Adresse uebenehmen
+                    print "adr: %d - %d" % (adr,0)
+                
+                    adr+=1
+                    return adr
+                
+                    if(adr>15):
+                        adr=1
+            except KeyboardInterrupt:
+                pass
+            finally:
+                GPIO.cleanup() 
+           
    
 
 

@@ -6,7 +6,7 @@ from bayeosgatewayclient import BayEOSSender
 PATH = '/tmp/bayeos-device1/'
 NAME = 'Python-Test-Device'
 URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
-sender = BayEOSSender(PATH, NAME, URL, 'xbee', 'admin')
+sender = BayEOSSender(PATH, NAME, URL, 'bayeos', 'root2')
 
 while True:
     res = sender.send()
