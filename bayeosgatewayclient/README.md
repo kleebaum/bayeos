@@ -14,3 +14,4 @@ Do the following steps to install the package via the setup.py script:
 
 ### Linux Binary
 #### Debian
+- run ```dpkg -i python-bayeosgatewayclient_0.1-1_all.deb``` as root
