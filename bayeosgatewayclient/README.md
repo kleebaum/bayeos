@@ -31,7 +31,8 @@ coming soon
 Run the method ```bayeosgatewayclient.samplewriter()``` to see how the BayEOSWriter class is instantiated.
 
 This is how it works:
-```from time import sleep
+```
+from time import sleep
 from bayeosgatewayclient import BayEOSWriter
 
 PATH = '/tmp/bayeos-device1/'
