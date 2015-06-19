@@ -1,13 +1,12 @@
 import ConfigParser
-from bayeosgatewayclient.bayeosgatewayclient import BayEOSGatewayClient
+from bayeosgatewayclient import BayEOSGatewayClient
 from random import randint
 import time
 from time import sleep
 import os
 import RPi.GPIO as GPIO
-
-def isset(var):
-    return var in locals() or var in globals()
+from sht21 import SHT21
+from mcp3424 import MCP3424
 
 this_dir, this_filename = os.path.split(__file__)
 DATA_PATH = os.path.join(this_dir, "../config/", "bayeosraspberrypi.ini")
@@ -34,6 +33,21 @@ for section in config.sections():
         options[key] = val
 
 print options
+
+try:
+    sht21 = SHT21(1)
+    mcp3424 = MCP3424(0x68, 18)
+    
+except IOError, e:
+    print e
+    print "Error creating connection to i2c.  This must be run as root. Did you use the right device number?"
+
+def measure():
+    print "Channel 1: %02f" % mcp3424.read_voltage(1)
+    print "Temperature: %s" % sht21.read_temperature()
+    print "Humidity: %s" % sht21.read_humidity()
+
+measure()
 
 # RPi.GPIO Layout verwenden (wie Pin-Nummern)
 GPIO.setmode(GPIO.BOARD)
