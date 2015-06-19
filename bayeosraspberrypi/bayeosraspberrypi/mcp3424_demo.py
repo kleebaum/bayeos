@@ -14,7 +14,9 @@ change this value if you have changed the address selection jumpers.
 Sample rate can be 12, 14, 16 or 18 bit.
 """
 
-bus = I2C.get_smbus()
+i2c_instance = I2C()
+bus = i2c_instance.get_smbus()
+
 adc = MCP3424(bus, address=0x68, rate=18)
 
 while (True):
