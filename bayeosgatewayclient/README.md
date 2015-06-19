@@ -28,9 +28,9 @@ coming soon
 - import the module ```import bayeosgatewayclient```
 
 ### Example writer
-Run the method ```bayeosgatewayclient.samplewriter()``` to see how the BayEOSWriter class is instantiated.
+Run the method ```bayeosgatewayclient.samplewriter()``` for a demo. 
 
-This is how it works:
+This is how to see how the BayEOSWriter class is instantiated.
 ```
 from time import sleep
 from bayeosgatewayclient import BayEOSWriter
@@ -46,3 +46,51 @@ while True:
     sleep(1)
 ```
 
+### Example sender
+Run the method ```bayeosgatewayclient.samplesender()``` for a demo.
+
+This is how how the BayEOSSender class is instantiated:
+```
+from time import sleep
+from bayeosgatewayclient import BayEOSSender
+
+PATH = '/tmp/bayeos-device1/'
+NAME = 'Python-Test-Device'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+sender = BayEOSSender(PATH, NAME, URL, 'bayeos', 'root')
+
+while True:
+    res = sender.send()
+    if res > 0:
+        print 'Successfully sent ' + str(res) + ' post requests.\n'
+    sleep(5)
+```
+
+### Example client
+Run the method ```bayeosgatewayclient.sampleclient()``` for a demo.
+```
+from bayeosgatewayclient import BayEOSGatewayClient
+from random import randint
+
+OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',
+           'bayeosgateway_pw' : 'xbee',
+           'bayeosgateway_user' : 'admin',
+           'sender' : 'anja'}
+
+NAMES = ['PythonTestDevice1', 'PythonTestDevice2', 'PythonTestDevice3']
+#names = ['PythonTestDevicex']
+
+class PythonTestDevice(BayEOSGatewayClient):
+    """Creates both a writer and sender instance for every NAME. Implements BayEOSGatewayClient"""
+    def readData(self):
+        if self.names[self.i] == 'PythonTestDevice1':
+            return (randint(-1, 1), 3, 4)
+        else:
+            #return [[0,2], [1,1.0], [2,randint(-1,1)]]
+            return (2, 1.0, randint(-1, 1))
+print OPTIONS
+
+client = PythonTestDevice(NAMES, OPTIONS)
+
+client.run()
+```
