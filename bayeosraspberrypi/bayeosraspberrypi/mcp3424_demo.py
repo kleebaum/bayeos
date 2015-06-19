@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from mcp3424 import MCP3424
+from i2c import I2C
 import time
 import os
 
@@ -13,7 +14,8 @@ change this value if you have changed the address selection jumpers.
 Sample rate can be 12, 14, 16 or 18 bit.
 """
 
-adc = MCP3424(address=0x68, rate=18)
+bus = I2C.get_smbus()
+adc = MCP3424(bus, address=0x68, rate=18)
 
 while (True):
     # clear the console
