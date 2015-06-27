@@ -5,6 +5,7 @@ import time
 from time import sleep
 import os
 import RPi.GPIO as GPIO
+from i2c import I2C
 from sht21 import SHT21
 from mcp3424 import MCP3424
 
@@ -36,7 +37,9 @@ print options
 
 try:
     sht21 = SHT21(1)
-    mcp3424 = MCP3424(0x68, 18)
+    i2c_instance = I2C()
+    bus = i2c_instance.get_smbus()
+    mcp3424 = MCP3424(bus, 0x68, 18)
     
 except IOError, e:
     print e
