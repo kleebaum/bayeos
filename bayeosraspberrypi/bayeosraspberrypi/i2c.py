@@ -14,7 +14,7 @@ https://github.com/abelectronicsuk/ABElectronics_Python_Libraries/
 
 class I2C:
     
-    def get_smbus(self):
+    def __init__(self):
         """ Detects i2C port number and assign to i2c_bus. """
         i2c_bus = 0
         for line in open('/proc/cpuinfo').readlines():

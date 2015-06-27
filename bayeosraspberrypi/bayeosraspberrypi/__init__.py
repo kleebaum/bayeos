@@ -37,9 +37,8 @@ print options
 
 try:
     sht21 = SHT21(1)
-    i2c_instance = I2C()
-    bus = i2c_instance.get_smbus()
-    mcp3424 = MCP3424(bus, 0x68, 18)
+    i2c = I2C()
+    mcp3424 = MCP3424(i2c, 0x68, 18)
     
 except IOError, e:
     print e
