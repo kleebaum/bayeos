@@ -28,7 +28,7 @@ class I2C:
                         i2c_bus = 1
                     break
         try:        
-            return smbus.SMBus(i2c_bus)
+            self = smbus.SMBus(i2c_bus)
         except IOError:
                 print ("Could not open the i2c bus.")
                 print ("Please check that i2c is enabled and python-smbus and i2c-tools are installed.")
