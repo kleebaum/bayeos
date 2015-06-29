@@ -481,7 +481,7 @@ class BayEOSGatewayClient():
                         self.saveData(data)
                     else:
                         print "readData failed"
-                        sleep(self.getOption('writer_sleep_time'))
+                    sleep(self.getOption('writer_sleep_time'))
                 exit()
 
             self.pid_r[i] = os.fork()
