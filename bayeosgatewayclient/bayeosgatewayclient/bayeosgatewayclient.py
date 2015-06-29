@@ -6,52 +6,118 @@ from struct import pack, unpack
 from _socket import gethostname
 from time import sleep
 
-DATA_TYPES = {0x1 : {'value' : 'f', 'valueLength' : 4},  # float32 4 bytes
-              0x2 : {'value' : 'i', 'valueLength' : 4},  # int32 4 bytes
-              0x3 : {'value' : 'h', 'valueLength' : 2},  # int16 2 bytes
-              0x4 : {'value' : 'b', 'valueLength' : 1},  # int8 1 byte
-              0x5 : {'value' : 'd', 'valueLength' : 8}}  # double 8 bytes
-
-FRAME_TYPES = {0x1: {'name' : 'DataFrame'},
-               0x2: {'name' : 'Command'},
-               0x3: {'name' : 'CommandResponse'},
-               0x4: {'name' : 'Message'},
-               0x5: {'name' : 'ErrorMessage'},
-               0x6: {'name' : 'RoutedFrame'},
-               0x7: {'name' : 'DelayedFrame'},
-               0x8: {'name' : 'RoutedFrameRSSI'},
-               0x9: {'name' : 'TimestampFrame'},
-               0xa: {'name' : 'Binary'},
-               0xb: {'name' : 'OriginFrame'},
-               0xc: {'name' : 'TimestampFrame'}}
-
-class BayEOS():
-
-    def createDataFrame(self, values, valueType=0x1, offset=0):
+class BayEOSFrame():
+    """Implementation of BayEOS Frame Protocol Specification."""
+    global DATA_TYPES, FRAME_TYPES
+    
+    def create_data_frame(self):
         """
         Creates a BayEOS Data Frame.
         @param values: list with [channel index, value] tuples
-        @param valueType: defines Offset and Data Types
+        @param value_type: defines Offset and Data Types
         @param offset: length of Channel Offset (if Offset Type is 0x0)
-        @return Data Frame as a binary string
+        @return Data Frame as a binary String
         """
-        frame = pack('bb', 0x1, valueType)  # 0x1 represents data frame
-        offsetType = (0xf0 & valueType)  # first four bits of frame type
-        dataType = (0x0f & valueType)  # last four bits of frame type
-        v = DATA_TYPES[dataType]['value']
-        if offsetType == 0x0:  # data frame with channel offset
-            frame += pack('b', offset)  # 1 byte channel offset
+        frame = pack('b', self.value_type)
+        offset_type = (0xf0 & self.value_type)  # first four bits of the Value Type
+        data_type = (0x0f & self.value_type)  # last four bits of the Value Type
+        v = DATA_TYPES[data_type]['value']  # search DATA_TYPES Dictionary
+
+        if offset_type == 0x0:  # Data Frame with channel offset
+            frame += pack('b', self.offset)  # 1 byte channel offset
+
         try:
-            for [key, each_value] in values:
-                if offsetType == 0x40:  # data frame with channel indices
+            for [key, each_value] in self.values:
+                if offset_type == 0x4:  # Data Frame with channel indices
                     frame += pack('b', key)
                 frame += pack(v, each_value)
-
         except TypeError:
-            for each_value in values:
+            for each_value in self.values:  # simple Data Frame, Offset Type is 0x2
                 frame += pack(v, each_value)
-
+        print self.values
         return frame
+
+    def create_command_frame(self):
+        """
+        Creates a BayEOS Command or Command Response Frame.
+        @param cmd_type: type of command
+        @param cmd: instruction for or response from receiver
+        """
+        return pack('b', self.cmd_type) + self.cmd
+
+    def create_message_frame(self):
+        """
+        Creates a BayEOS Message or Error Message Frame.
+        @param string: message to save
+        """
+        return self.string
+
+    def create_routed_frame(self):
+        """
+        Creates a BayEOS Routed or a BayEOS Routed RSSI Frame.
+        @param my_id: TX-XBee MyId
+        @param pan_id: XBee PANID
+        @param rssi: RSSI
+        @param frame: must be a valid BayEOS Frame
+        """
+        ids = pack('h', self.my_id) + pack('h', self.pan_id)
+        if self.rssi:
+            return  ids + pack('b', self.rssi) + self.frame
+        return ids + self.frame
+
+    def create_origin_frame(self):
+        """
+        Saves Origin Frame.
+        @param origin: name to appear in the gateway
+        @param frame: must be a valid BayEOS frame
+        """
+        origin = self.origin[0:255]
+        return pack('b', len(origin)) + origin + self.frame
+
+    DATA_TYPES = {0x1 : {'value' : 'f', 'valueLength' : 4},  # float32 4 bytes
+                  0x2 : {'value' : 'i', 'valueLength' : 4},  # int32 4 bytes
+                  0x3 : {'value' : 'h', 'valueLength' : 2},  # int16 2 bytes
+                  0x4 : {'value' : 'b', 'valueLength' : 1},  # int8 1 byte
+                  0x5 : {'value' : 'd', 'valueLength' : 8}}  # double 8 bytes
+
+    FRAME_TYPES = {0x1: {'name' : 'Data Frame', 
+                         'create' : create_data_frame,
+                         'variables' : ['values', 'value_type', 'offset']},
+                   0x2: {'name' : 'Command', 
+                         'create' : create_command_frame,
+                         'variables' : ['cmd_type', 'cmd']},
+                   0x3: {'name' : 'Command Response', 
+                         'create' : create_command_frame,
+                         'variables' : ['cmd_type', 'cmd']},
+                   0x4: {'name' : 'Message', 'create' : create_message_frame,
+                         'variables' : ['string']},
+                   0x5: {'name' : 'Error Message', 'create' : create_message_frame,
+                         'variables' : ['string']},
+                   0x6: {'name' : 'Routed Frame', 'create' : create_routed_frame,
+                         'variables' : ['my_id', 'pan_id', 'frame']},
+                   0x7: {'name' : 'Delayed Frame'},
+                   0x8: {'name' : 'Routed RSSI Frame', 'create' : create_routed_frame,
+                         'variables' : ['my_id', 'pan_id', 'frame', 'rssi']},
+                   0x9: {'name' : 'Timestamp Frame'},
+                   0xa: {'name' : 'Binary'},
+                   0xb: {'name' : 'Origin Frame',
+                         'abbr' : 'origin',
+                         'create' : create_origin_frame,
+                         'variables' : ['origin', 'frame']},
+                   0xc: {'name' : 'Timestamp Frame'}}
+
+    def __init__(self, frame_type=0x1, values=[], value_type=0x1, 
+                 offset=0, ts=0, origin='', string='', my_id='', 
+                 pan_id='', frame='', rssi='', cmd_type='', cmd=''):
+        self.frame_type = frame_type
+        self.name = FRAME_TYPES[frame_type]['name']
+        
+        # only initialize needed variables
+        for each_var in FRAME_TYPES[frame_type]['variables']:
+            setattr(self, each_var, eval(each_var))
+        
+        # create frame
+        self.bin = pack('b', frame_type) + FRAME_TYPES[frame_type]['create'](self)
 
     def parseFrame(self, frame, ts=False, origin='', rssi=False):
         """
@@ -66,7 +132,7 @@ class BayEOS():
             ts = time.time()
         frameType = unpack('=b', frame[0:1])[0]
         res = {}
-        res['type'] = FRAME_TYPES[frameType]['name']
+        res['type'] = self.FRAME_TYPES[frameType]['name']
         if frameType == 0x1:
             res['value'] = self.parseDataFrame(frame)
         elif frameType == 0x2:
@@ -106,8 +172,8 @@ class BayEOS():
         valueType = unpack('=b', frame[1:2])[0]
         offsetType = 0xf0 & valueType
         dataType = 0x0f & valueType
-        v = DATA_TYPES[dataType]['value']
-        vl = DATA_TYPES[dataType]['valueLength']
+        v = self.DATA_TYPES[dataType]['value']
+        vl = self.DATA_TYPES[dataType]['valueLength']
         pos = 2
         key = 0
         res = {}
@@ -146,87 +212,87 @@ class BayEOSWriter():
         for eachFile in files:
             if string.find(eachFile, '.act'):  # Rename active file
                 rename(eachFile, eachFile.replace('.act', '.rd'))
-        self.startNewFile()
-        self.bayeos = BayEOS()
+        self.__start_new_file()
+        #self.bayeos = BayEOSFrame()
 
-    def saveDataFrame(self, values, valueType=0x1, offset=0, ts=0):
-        """
-        Writes a Data Frame to the buffer.
-        @param values: array for values
-        @param valueType: defines Offset and Data Types
-        @param offset: offset parameter for BayEOS data frames (relevant for some types)
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(self.bayeos.createDataFrame(values, valueType, offset), ts)
-
-    def saveCommandFrame(self, cmdType, command, ts=0):
-        """
-        Saves Command Frame.
-        @param cmdType: type of command
-        @param command: instruction for receiver
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x2) + pack('b', cmdType) + command, ts)
-
-    def saveCommandResponseFrame(self, cmdType, commandRes, ts=0):
-        """
-        Saves Command Response Frame.
-        @param cmdType: type of command
-        @param commandRes: response of receiver
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x3) + pack('b', cmdType) + commandRes, ts)
-
-    def saveMessage(self, string, ts=0):
-        """
-        Saves message.
-        @param sting: message to save
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x4) + string, ts)
-
-    def saveErrorMessage(self, string, ts=0):
-        """
-        Saves error message.
-        @param sting: message to save
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x5) + string, ts)
-
-    def saveRoutedFrame(self, myId, panId, frame, ts=0):
-        """
-        Saves routed frame.
-        @param myId: TX-XBee MyId
-        @param panId: XBee PANID
-        @param frame: must be a valid BayEOS frame
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x6) + pack('h', myId) + pack('h', panId) + frame, ts)
-
-    def saveRoutedFrameRSSI(self, myId, panId, rssi, frame, ts=0):
-        """
-        Saves routed frame RSSI.
-        @param myId: TX-XBee MyId
-        @param panId: XBee PANID
-        @param rssi: RSSI
-        @param frame: must be a valid BayEOS frame
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        self.saveFrame(pack('b', 0x8) +
-                       pack('h', myId) +
-                       pack('h', panId) +
-                       pack('b', rssi) +
-                       frame, ts)
-
-    def saveOriginFrame(self, origin, frame, ts=0):
-        """
-        Saves Origin Frame.
-        @param origin: name to appear in the gateway
-        @param frame: must be a valid BayEOS frame
-        @param ts: Unix epoch time stamp, if zero system time is used
-        """
-        origin = origin[0:255]
-        self.saveFrame(pack('b', 0xb) + pack('b', len(origin)) + origin + frame, ts)
+#     def saveDataFrame(self, values, valueType=0x1, offset=0, ts=0):
+#         """
+#         Writes a Data Frame to the buffer.
+#         @param values: array for values
+#         @param valueType: defines Offset and Data Types
+#         @param offset: offset parameter for BayEOS data frames (relevant for some types)
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(self.bayeos.createDataFrame(values, valueType, offset), ts)
+#
+#     def saveCommandFrame(self, cmdType, command, ts=0):
+#         """
+#         Saves Command Frame.
+#         @param cmdType: type of command
+#         @param command: instruction for receiver
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(pack('b', 0x2) + pack('b', cmdType) + command, ts)
+#
+#     def saveCommandResponseFrame(self, cmdType, commandRes, ts=0):
+#         """
+#         Saves Command Response Frame.
+#         @param cmdType: type of command
+#         @param commandRes: response of receiver
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(pack('b', 0x3) + pack('b', cmdType) + commandRes, ts)
+#
+#     def saveMessage(self, string, ts=0):
+#         """
+#         Saves message.
+#         @param sting: message to save
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(pack('b', 0x4) + string, ts)
+#
+#     def saveErrorMessage(self, string, ts=0):
+#         """
+#         Saves error message.
+#         @param sting: message to save
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(pack('b', 0x5) + string, ts)
+#
+#     def saveRoutedFrame(self, myId, panId, frame, ts=0):
+#         """
+#         Saves routed frame.
+#         @param myId: TX-XBee MyId
+#         @param panId: XBee PANID
+#         @param frame: must be a valid BayEOS frame
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(pack('b', 0x6) + pack('h', myId) + pack('h', panId) + frame, ts)
+#
+#     def saveRoutedFrameRSSI(self, myId, panId, rssi, frame, ts=0):
+#         """
+#         Saves routed frame RSSI.
+#         @param myId: TX-XBee MyId
+#         @param panId: XBee PANID
+#         @param rssi: RSSI
+#         @param frame: must be a valid BayEOS frame
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         self.saveFrame(pack('b', 0x8) +
+#                        pack('h', myId) +
+#                        pack('h', panId) +
+#                        pack('b', rssi) +
+#                        frame, ts)
+#
+#     def saveOriginFrame(self, origin, frame, ts=0):
+#         """
+#         Saves Origin Frame.
+#         @param origin: name to appear in the gateway
+#         @param frame: must be a valid BayEOS frame
+#         @param ts: Unix epoch time stamp, if zero system time is used
+#         """
+#         origin = origin[0:255]
+#         self.saveFrame(pack('b', 0xb) + pack('b', len(origin)) + origin + frame, ts)
 
     def saveFrame(self, frame, ts=0):
         """Save Timestamp Frame to file. This is a base function.
@@ -239,23 +305,24 @@ class BayEOSWriter():
         if self.fp.tell() > self.maxChunk or time.time() - self.currentTs > self.maxTime:
             self.fp.close()
             rename(self.currentName + '.act', self.currentName + '.rd')
-            self.startNewFile()
+            self.__start_new_file()
 
-    def startNewFile(self):
+    def __start_new_file(self):
         """Opens a new file with ending .act and determines current file name."""
         self.currentTs = time.time()
         [sec, usec] = string.split(str(self.currentTs), '.')
         self.currentName = sec + '-' + usec
         self.fp = open(self.currentName + '.act', 'wb')
 
-    def save(self, values, valueType=0x1, offset=0, ts=0, origin=''):
+    def save(self, values, value_type=0x1, offset=0, ts=0, origin=''):
         """Generic frame saving method."""
+        data_frame = BayEOSFrame(values=values, value_type=value_type, offset=offset)
         if not origin:
-            self.saveDataFrame(values, valueType, offset, ts)
+            self.saveFrame(data_frame.bin, ts)
         else:
-            dataFrame = self.bayeos.createDataFrame(values, valueType, offset)
-            self.saveOriginFrame(origin, dataFrame, ts)
-            print "origin Frame saved"
+            origin_frame = BayEOSFrame(frame_type=0xb, origin=origin, frame=data_frame.bin)
+            self.saveFrame(origin_frame.bin, ts)
+            print "Origin Frame saved."
 
 class BayEOSSender():
     def __init__(self, path, name, url, pw, user='import',
@@ -408,11 +475,11 @@ class BayEOSGatewayClient():
         for i in range(0, len(names)):
             senderDefaults[i] = prefix + names[i]
 
-        defaults = {'writer_sleep_time' : 200,
+        defaults = {'writer_sleep_time' : 15,
                     'max_chunk' : 5000,
                     'max_time' : 60,
                     'data_type' : 0x1,
-                    'sender_sleep_time' : 1500,
+                    'sender_sleep_time' : 5,
                     'sender' : senderDefaults,
                     'bayeosgateway_user' : 'import',
                     'bayeosgateway_version' : '1.9',
