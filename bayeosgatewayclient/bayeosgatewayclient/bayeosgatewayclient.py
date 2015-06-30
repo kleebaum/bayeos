@@ -10,7 +10,7 @@ class BayEOSFrame:
     """Implementation of BayEOS Frame Protocol Specification."""
     global DATA_TYPES, FRAME_TYPES
 
-    def create_data_frame(self):
+    def create_data_frame(self, values=[], value_type=0x1, offset=0):
         """
         Creates a BayEOS Data Frame.
         @param values: list with [channel index, value] tuples
@@ -18,40 +18,41 @@ class BayEOSFrame:
         @param offset: length of Channel Offset (if Offset Type is 0x0)
         @return Data Frame as a binary String
         """
-        frame = pack('b', self.value_type)
-        offset_type = (0xf0 & self.value_type)  # first four bits of the Value Type
-        data_type = (0x0f & self.value_type)  # last four bits of the Value Type
+        value_type = int(value_type)
+        frame = pack('b', value_type)
+        offset_type = (0xf0 & value_type)  # first four bits of the Value Type
+        data_type = (0x0f & value_type)  # last four bits of the Value Type
         val_format = DATA_TYPES[data_type]['format']  # search DATA_TYPES Dictionary
 
         if offset_type == 0x0:  # Data Frame with channel offset
-            frame += pack('b', self.offset)  # 1 byte channel offset
+            frame += pack('b', offset)  # 1 byte channel offset
 
         try:
-            for [key, each_value] in self.values:
+            for [key, each_value] in values:
                 if offset_type == 0x4:  # Data Frame with channel indices
                     frame += pack('b', key)
                 frame += pack(val_format, each_value)
         except TypeError:
-            for each_value in self.values:  # simple Data Frame, Offset Type is 0x2
+            for each_value in values:  # simple Data Frame, Offset Type is 0x2
                 frame += pack(val_format, each_value)
         return frame
 
-    def create_command_frame(self):
+    def create_command_frame(self, cmd_type, cmd):
         """
         Creates a BayEOS Command or Command Response Frame.
         @param cmd_type: type of command
         @param cmd: instruction for or response from receiver
         """
-        return pack('b', self.cmd_type) + self.cmd
+        return pack('b', cmd_type) + cmd
 
-    def create_message_frame(self):
+    def create_message_frame(self, string):
         """
         Creates a BayEOS Message or Error Message Frame.
         @param string: message to save
         """
-        return self.string
+        return string
 
-    def create_routed_frame(self):
+    def create_routed_frame(self, my_id, pan_id, frame, rssi=''):
         """
         Creates a BayEOS Routed or a BayEOS Routed RSSI Frame.
         @param my_id: TX-XBee MyId
@@ -59,19 +60,19 @@ class BayEOSFrame:
         @param rssi: RSSI
         @param frame: must be a valid BayEOS Frame
         """
-        ids = pack('h', self.my_id) + pack('h', self.pan_id)
-        if self.rssi:
-            return  ids + pack('b', self.rssi) + self.frame
-        return ids + self.frame
+        ids = pack('h', my_id) + pack('h', pan_id)
+        if rssi:
+            return  ids + pack('b', rssi) + frame
+        return ids + frame
 
-    def create_origin_frame(self):
+    def create_origin_frame(self, origin, frame):
         """
         Saves Origin Frame.
         @param origin: name to appear in the gateway
         @param frame: must be a valid BayEOS frame
         """
-        origin = self.origin[0:255]
-        return pack('b', len(origin)) + origin + self.frame
+        origin = origin[0:255]
+        return pack('b', len(origin)) + origin + frame
 
     DATA_TYPES = {0x1 : {'format' : 'f', 'valueLength' : 4},  # float32 4 bytes
                   0x2 : {'format' : 'i', 'valueLength' : 4},  # int32 4 bytes
@@ -115,14 +116,16 @@ class BayEOSFrame:
         #self.name = FRAME_TYPES[frame_type]['name']
         
         # only initialize needed variables
+        variables = {}
         try:
             for each_var in FRAME_TYPES[frame_type]['variables']:
                 setattr(self, each_var, eval(each_var))
+                variables[str(each_var)] = eval(each_var)
         except NameError as err:
             print "Error: " + str(err)
         
         # create frame
-        self.bin = pack('b', frame_type) + FRAME_TYPES[frame_type]['create'](self)
+        self.bin = pack('b', frame_type) + FRAME_TYPES[frame_type]['create'](self, **variables)
         
     def to_string(self):
         """Prints a readable form of the BayEOS Frame."""
@@ -189,7 +192,7 @@ class BayEOSFrame:
         valueType = unpack('=b', frame[1:2])[0]
         offsetType = 0xf0 & valueType
         dataType = 0x0f & valueType
-        v = DATA_TYPES[dataType]['format']
+        val_format = DATA_TYPES[dataType]['format']
         vl = DATA_TYPES[dataType]['valueLength']
         pos = 2
         key = 0
@@ -203,7 +206,7 @@ class BayEOSFrame:
                 pos += 1
             else:
                 key += 1
-            value = unpack('=' + v, frame[pos:pos + vl])[0]
+            value = unpack('=' + val_format, frame[pos:pos + vl])[0]
             pos += vl
             res[key] = value
         return res
