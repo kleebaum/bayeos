@@ -6,10 +6,10 @@ from struct import pack, unpack
 from _socket import gethostname
 from time import sleep
 
-class BayEOSFrame():
+class BayEOSFrame:
     """Implementation of BayEOS Frame Protocol Specification."""
     global DATA_TYPES, FRAME_TYPES
-    
+
     def create_data_frame(self):
         """
         Creates a BayEOS Data Frame.
@@ -21,7 +21,7 @@ class BayEOSFrame():
         frame = pack('b', self.value_type)
         offset_type = (0xf0 & self.value_type)  # first four bits of the Value Type
         data_type = (0x0f & self.value_type)  # last four bits of the Value Type
-        v = DATA_TYPES[data_type]['value']  # search DATA_TYPES Dictionary
+        val_format = DATA_TYPES[data_type]['format']  # search DATA_TYPES Dictionary
 
         if offset_type == 0x0:  # Data Frame with channel offset
             frame += pack('b', self.offset)  # 1 byte channel offset
@@ -30,11 +30,10 @@ class BayEOSFrame():
             for [key, each_value] in self.values:
                 if offset_type == 0x4:  # Data Frame with channel indices
                     frame += pack('b', key)
-                frame += pack(v, each_value)
+                frame += pack(val_format, each_value)
         except TypeError:
             for each_value in self.values:  # simple Data Frame, Offset Type is 0x2
-                frame += pack(v, each_value)
-        print self.values
+                frame += pack(val_format, each_value)
         return frame
 
     def create_command_frame(self):
@@ -74,55 +73,72 @@ class BayEOSFrame():
         origin = self.origin[0:255]
         return pack('b', len(origin)) + origin + self.frame
 
-    DATA_TYPES = {0x1 : {'value' : 'f', 'valueLength' : 4},  # float32 4 bytes
-                  0x2 : {'value' : 'i', 'valueLength' : 4},  # int32 4 bytes
-                  0x3 : {'value' : 'h', 'valueLength' : 2},  # int16 2 bytes
-                  0x4 : {'value' : 'b', 'valueLength' : 1},  # int8 1 byte
-                  0x5 : {'value' : 'd', 'valueLength' : 8}}  # double 8 bytes
+    DATA_TYPES = {0x1 : {'format' : 'f', 'valueLength' : 4},  # float32 4 bytes
+                  0x2 : {'format' : 'i', 'valueLength' : 4},  # int32 4 bytes
+                  0x3 : {'format' : 'h', 'valueLength' : 2},  # int16 2 bytes
+                  0x4 : {'format' : 'b', 'valueLength' : 1},  # int8 1 byte
+                  0x5 : {'format' : 'd', 'valueLength' : 8}}  # double 8 bytes
 
-    FRAME_TYPES = {0x1: {'name' : 'Data Frame', 
+    FRAME_TYPES = {0x1: {'name' : 'Data Frame',
                          'create' : create_data_frame,
                          'variables' : ['values', 'value_type', 'offset']},
-                   0x2: {'name' : 'Command', 
+                   0x2: {'name' : 'Command',
                          'create' : create_command_frame,
                          'variables' : ['cmd_type', 'cmd']},
-                   0x3: {'name' : 'Command Response', 
+                   0x3: {'name' : 'Command Response',
                          'create' : create_command_frame,
                          'variables' : ['cmd_type', 'cmd']},
-                   0x4: {'name' : 'Message', 'create' : create_message_frame,
+                   0x4: {'name' : 'Message',
+                         'create' : create_message_frame,
                          'variables' : ['string']},
-                   0x5: {'name' : 'Error Message', 'create' : create_message_frame,
+                   0x5: {'name' : 'Error Message',
+                         'create' : create_message_frame,
                          'variables' : ['string']},
-                   0x6: {'name' : 'Routed Frame', 'create' : create_routed_frame,
+                   0x6: {'name' : 'Routed Frame',
+                         'create' : create_routed_frame,
                          'variables' : ['my_id', 'pan_id', 'frame']},
                    0x7: {'name' : 'Delayed Frame'},
-                   0x8: {'name' : 'Routed RSSI Frame', 'create' : create_routed_frame,
+                   0x8: {'name' : 'Routed RSSI Frame',
+                         'create' : create_routed_frame,
                          'variables' : ['my_id', 'pan_id', 'frame', 'rssi']},
                    0x9: {'name' : 'Timestamp Frame'},
                    0xa: {'name' : 'Binary'},
                    0xb: {'name' : 'Origin Frame',
-                         'abbr' : 'origin',
                          'create' : create_origin_frame,
                          'variables' : ['origin', 'frame']},
                    0xc: {'name' : 'Timestamp Frame'}}
 
-    def __init__(self, frame_type=0x1, values=[], value_type=0x1, 
-                 offset=0, ts=0, origin='', string='', my_id='', 
+    def __init__(self, values=[], value_type=0x1, 
+                 offset=0, ts=0, frame_type=0x1, origin='', string='', my_id='', 
                  pan_id='', frame='', rssi='', cmd_type='', cmd=''):
-        self.frame_type = frame_type
-        self.name = FRAME_TYPES[frame_type]['name']
+        #self.frame_type = frame_type
+        #self.name = FRAME_TYPES[frame_type]['name']
         
         # only initialize needed variables
-        for each_var in FRAME_TYPES[frame_type]['variables']:
-            setattr(self, each_var, eval(each_var))
+        try:
+            for each_var in FRAME_TYPES[frame_type]['variables']:
+                setattr(self, each_var, eval(each_var))
+        except NameError as err:
+            print "Error: " + str(err)
         
         # create frame
         self.bin = pack('b', frame_type) + FRAME_TYPES[frame_type]['create'](self)
+        
+    def to_string(self):
+        """Prints a readable form of the BayEOS Frame."""
+        #frame = {}
+        #frame['name'] = self.name
+        #frame['type'] = self.frame_type
+        #frame['value'] = self.parse_frame(self.bin)
+        #for each_var in FRAME_TYPES[self.frame_type]['variables']:
+        #        setattr(self, each_var, eval(each_var))
+        print self.parse_frame(self.bin)
 
-    def parseFrame(self, frame, ts=False, origin='', rssi=False):
+    @classmethod
+    def parse_frame(self, frame, ts=False, origin='', rssi=False):
         """
         Parses a binary coded BayEOS Frame into a Python dictionary.
-        @param frame
+        @param frame (binary coded String)
         @param ts
         @param origin
         @param rssi
@@ -132,9 +148,9 @@ class BayEOSFrame():
             ts = time.time()
         frameType = unpack('=b', frame[0:1])[0]
         res = {}
-        res['type'] = self.FRAME_TYPES[frameType]['name']
+        res['type'] = FRAME_TYPES[frameType]['name']
         if frameType == 0x1:
-            res['value'] = self.parseDataFrame(frame)
+            res['value'] = self.parse_data_frame(frame)
         elif frameType == 0x2:
             res['cmd'] = unpack('=b', frame[1:2])[0]
             res['value'] = frame[2:]
@@ -150,7 +166,7 @@ class BayEOSFrame():
             res['value'] = frame[5:]
         elif frameType == 0xc:
             ts = unpack('=d', frame[1:9])[0]
-            return self.parseFrame(frame[9:], ts, origin, rssi)
+            return self.parse_frame(frame[9:], ts, origin, rssi)
         else:
             res['value'] = frame
         if ts:
@@ -160,8 +176,9 @@ class BayEOSFrame():
         if rssi:
             res['rssi'] = rssi
         return res
-
-    def parseDataFrame(self, frame):
+    
+    @classmethod
+    def parse_data_frame(self, frame):
         """
         Parses a binary coded BayEOS Data Frame into a Python dictionary.
         @param frame: binary coded BayEOS Data Frame
@@ -172,8 +189,8 @@ class BayEOSFrame():
         valueType = unpack('=b', frame[1:2])[0]
         offsetType = 0xf0 & valueType
         dataType = 0x0f & valueType
-        v = self.DATA_TYPES[dataType]['value']
-        vl = self.DATA_TYPES[dataType]['valueLength']
+        v = DATA_TYPES[dataType]['format']
+        vl = DATA_TYPES[dataType]['valueLength']
         pos = 2
         key = 0
         res = {}
@@ -191,7 +208,7 @@ class BayEOSFrame():
             res[key] = value
         return res
 
-class BayEOSWriter():
+class BayEOSWriter:
     def __init__(self, path, maxChunk=5000, maxTime=60):
         """
         Constructor for a BayEOSWriter instance.
@@ -316,7 +333,7 @@ class BayEOSWriter():
 
     def save(self, values, value_type=0x1, offset=0, ts=0, origin=''):
         """Generic frame saving method."""
-        data_frame = BayEOSFrame(values=values, value_type=value_type, offset=offset)
+        data_frame = BayEOSFrame(values, value_type, offset)
         if not origin:
             self.saveFrame(data_frame.bin, ts)
         else:
@@ -324,7 +341,7 @@ class BayEOSWriter():
             self.saveFrame(origin_frame.bin, ts)
             print "Origin Frame saved."
 
-class BayEOSSender():
+class BayEOSSender:
     def __init__(self, path, name, url, pw, user='import',
                  absoluteTime=True, rm=True, gatewayVersion='1.9'):
         """
@@ -443,7 +460,7 @@ class BayEOSSender():
             exit('URLError: ' + str(e))
         return 0
 
-class BayEOSGatewayClient():
+class BayEOSGatewayClient:
 
     def __init__(self, names, options1={}, defaults1={}):
         """

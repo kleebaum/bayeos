@@ -25,5 +25,5 @@ writer = BayEOSWriter(PATH, 100)
 
 while True:
     print 'adding frame\n'
-    writer.save(values=[2.1, 3, 20.5], valueType=0x02, offset=2)
+    writer.save(values=[2.1, 3, 20.5], value_type=0x02, offset=2)
     sleep(1)
