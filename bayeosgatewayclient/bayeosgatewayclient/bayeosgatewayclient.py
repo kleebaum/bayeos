@@ -73,41 +73,125 @@ class BayEOSFrame:
         """
         origin = origin[0:255]
         return pack('b', len(origin)) + origin + frame
+    
+    @classmethod
+    def bin_to_frame(self, frame):
+        """Initializes a BayEOSFrame object from a binary coded frame."""
+        pass
 
-    DATA_TYPES = {0x1 : {'format' : 'f', 'valueLength' : 4},  # float32 4 bytes
-                  0x2 : {'format' : 'i', 'valueLength' : 4},  # int32 4 bytes
-                  0x3 : {'format' : 'h', 'valueLength' : 2},  # int16 2 bytes
-                  0x4 : {'format' : 'b', 'valueLength' : 1},  # int8 1 byte
-                  0x5 : {'format' : 'd', 'valueLength' : 8}}  # double 8 bytes
+    @classmethod
+    def parse_frame(self, frame):
+        """Parses a binary coded BayEOS Frame into a Python dictionary.
+        @param frame (binary coded String)
+        @return Python dictionary
+        """
+        frame_type = unpack('=b', frame[0:1])[0]        
+        parse_result = {'type' : FRAME_TYPES[frame_type]['name']}
+        parse_result.update(FRAME_TYPES[frame_type]['parse'](self, frame))
+        return parse_result
+    
+    def parse_data_frame(self, frame):
+        """
+        Parses a binary coded BayEOS Data Frame into a Python dictionary.
+        @param frame: binary coded BayEOS Data Frame
+        @return unpacked tuples of channel indices and values
+        """
+        if unpack('=b', frame[0:1])[0] != 0x1:
+            print "This is not a Data Frame."
+            return False
+        value_type = unpack('=b', frame[1:2])[0]
+        offset_type = 0xf0 & value_type
+        data_type = 0x0f & value_type
+        val_format = DATA_TYPES[data_type]['format']
+        val_length = DATA_TYPES[data_type]['length']
+        pos = 2
+        key = 0
+        payload = {}
+        if offset_type == 0x0:
+            key = unpack('=b', frame[2:3])[0]  # offset
+            pos += 1
+        while pos < len(frame):
+            if offset_type == 0x40:
+                key = unpack('=b', frame[pos:pos + 1])[0]
+                pos += 1
+            else:
+                key += 1
+            value = unpack('=' + val_format, frame[pos:pos + val_length])[0]
+            pos += val_length
+            payload[key] = value
+        return {'values' : payload}
+    
+    def parse_command_frame(self, frame):
+        return {'cmd' : unpack('=b', frame[1:2])[0],
+                'value' : frame[2:]}
+    
+    def parse_message_frame(self, frame):
+        return {'value' : frame[1:]}
+    
+    def parse_routed_frame(self):
+        pass
+    
+    def parse_routed_rssi_frame(self):
+        pass
+    
+    def parse_origin_frame(self, frame):
+        length = unpack('=b', frame[1:2])[0]
+        nested_frame = self.parse_frame(frame[length+2:])
+        return {'origin' : frame[2:length+2],
+                'nested' : nested_frame}
+    
+    def parse_timestamp_frame(self, frame):
+        return {'ts' : unpack('=d', frame[1:9])[0]}
+                #, self.parse_frame(frame[9:], ts, origin, rssi)
+    
+    def parse_binary_frame(self, frame):
+        return {'pos' : unpack('=f', frame[1:5])[0],
+                'value' : frame[5:]}
+    
+
+    DATA_TYPES = {0x1 : {'format' : 'f', 'length' : 4},  # float32 4 bytes
+                  0x2 : {'format' : 'i', 'length' : 4},  # int32 4 bytes
+                  0x3 : {'format' : 'h', 'length' : 2},  # int16 2 bytes
+                  0x4 : {'format' : 'b', 'length' : 1},  # int8 1 byte
+                  0x5 : {'format' : 'd', 'length' : 8}}  # double 8 bytes
 
     FRAME_TYPES = {0x1: {'name' : 'Data Frame',
                          'create' : create_data_frame,
-                         'variables' : ['values', 'value_type', 'offset']},
+                         'variables' : ['values', 'value_type', 'offset'],
+                         'parse' : parse_data_frame},
                    0x2: {'name' : 'Command',
                          'create' : create_command_frame,
                          'variables' : ['cmd_type', 'cmd']},
+                         'parse' : parse_command_frame,
                    0x3: {'name' : 'Command Response',
                          'create' : create_command_frame,
-                         'variables' : ['cmd_type', 'cmd']},
+                         'variables' : ['cmd_type', 'cmd'],
+                         'parse' : parse_command_frame},
                    0x4: {'name' : 'Message',
                          'create' : create_message_frame,
-                         'variables' : ['string']},
+                         'variables' : ['string'],
+                         'parse' : parse_message_frame},
                    0x5: {'name' : 'Error Message',
                          'create' : create_message_frame,
-                         'variables' : ['string']},
+                         'variables' : ['string'],
+                         'parse' : parse_message_frame},
                    0x6: {'name' : 'Routed Frame',
                          'create' : create_routed_frame,
-                         'variables' : ['my_id', 'pan_id', 'frame']},
+                         'variables' : ['my_id', 'pan_id', 'frame'],
+                         'parse' : parse_routed_frame},
                    0x7: {'name' : 'Delayed Frame'},
                    0x8: {'name' : 'Routed RSSI Frame',
                          'create' : create_routed_frame,
-                         'variables' : ['my_id', 'pan_id', 'frame', 'rssi']},
+                         'variables' : ['my_id', 'pan_id', 'frame', 'rssi'],
+                         'parse' : parse_routed_frame},
                    0x9: {'name' : 'Timestamp Frame'},
-                   0xa: {'name' : 'Binary'},
+                   0xa: {'name' : 'Binary',
+                         'parse' : parse_binary_frame},
                    0xb: {'name' : 'Origin Frame',
                          'create' : create_origin_frame,
-                         'variables' : ['origin', 'frame']},
-                   0xc: {'name' : 'Timestamp Frame'}}
+                         'variables' : ['origin', 'frame'],
+                         'parse' : parse_origin_frame},
+                   0xc: {'name' : 'Timestamp Frame'}}    
 
     def __init__(self, values=[], value_type=0x1, 
                  offset=0, ts=0, frame_type=0x1, origin='', string='', my_id='', 
@@ -124,7 +208,7 @@ class BayEOSFrame:
         except NameError as err:
             print "Error: " + str(err)
         
-        # create frame
+        # create binary frame
         self.bin = pack('b', frame_type) + FRAME_TYPES[frame_type]['create'](self, **variables)
         
     def to_string(self):
@@ -137,79 +221,6 @@ class BayEOSFrame:
         #        setattr(self, each_var, eval(each_var))
         print self.parse_frame(self.bin)
 
-    @classmethod
-    def parse_frame(self, frame, ts=False, origin='', rssi=False):
-        """
-        Parses a binary coded BayEOS Frame into a Python dictionary.
-        @param frame (binary coded String)
-        @param ts
-        @param origin
-        @param rssi
-        @return array
-        """
-        if not ts:
-            ts = time.time()
-        frameType = unpack('=b', frame[0:1])[0]
-        res = {}
-        res['type'] = FRAME_TYPES[frameType]['name']
-        if frameType == 0x1:
-            res['value'] = self.parse_data_frame(frame)
-        elif frameType == 0x2:
-            res['cmd'] = unpack('=b', frame[1:2])[0]
-            res['value'] = frame[2:]
-        elif frameType == 0x3:
-            res['cmd'] = unpack('=b', frame[1:2])[0]
-            res['value'] = frame[2:]
-        elif frameType == 0x4:
-            res['value'] = frame[1:]
-        elif frameType == 0x5:
-            res['value'] = frame[1:]
-        elif frameType == 0xa:
-            res['pos'] = unpack('=f', frame[1:5])[0]
-            res['value'] = frame[5:]
-        elif frameType == 0xc:
-            ts = unpack('=d', frame[1:9])[0]
-            return self.parse_frame(frame[9:], ts, origin, rssi)
-        else:
-            res['value'] = frame
-        if ts:
-            res['ts'] = ts
-        if origin:
-            res['origin'] = origin
-        if rssi:
-            res['rssi'] = rssi
-        return res
-    
-    @classmethod
-    def parse_data_frame(self, frame):
-        """
-        Parses a binary coded BayEOS Data Frame into a Python dictionary.
-        @param frame: binary coded BayEOS Data Frame
-        @return unpacked tuples of channel indices and values
-        """
-        if unpack('=b', frame[0:1])[0] != 0x1:
-            return False
-        valueType = unpack('=b', frame[1:2])[0]
-        offsetType = 0xf0 & valueType
-        dataType = 0x0f & valueType
-        val_format = DATA_TYPES[dataType]['format']
-        vl = DATA_TYPES[dataType]['valueLength']
-        pos = 2
-        key = 0
-        res = {}
-        if offsetType == 0x0:
-            key = unpack('=b', frame[2:3])[0]  # offset
-            pos += 1
-        while pos < len(frame):
-            if offsetType == 0x40:
-                key = unpack('=b', frame[pos:pos + 1])[0]
-                pos += 1
-            else:
-                key += 1
-            value = unpack('=' + val_format, frame[pos:pos + vl])[0]
-            pos += vl
-            res[key] = value
-        return res
 
 class BayEOSWriter:
     def __init__(self, path, maxChunk=5000, maxTime=60):
