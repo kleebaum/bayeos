@@ -52,12 +52,14 @@ class BayEOSWriter:
 
     def save(self, values, value_type=0x1, offset=0, ts=0, origin=''):
         """Generic frame saving method."""
-        data_frame = BayEOSFrame(values, value_type, offset)
+        data_frame = BayEOSFrame.factory(frame_type=0x1)
+        data_frame.create(values, value_type, offset)
         if not origin:
-            self.saveFrame(data_frame.bin, ts)
+            self.saveFrame(data_frame.frame, ts)
         else:
-            origin_frame = BayEOSFrame(frame_type=0xb, origin=origin, frame=data_frame.bin)
-            self.saveFrame(origin_frame.bin, ts)
+            origin_frame = BayEOSFrame(frame_type=0xb)
+            origin_frame.create(origin, frame=data_frame.frame)
+            self.saveFrame(origin_frame.frame, ts)
             print "Origin Frame saved."
 
 class BayEOSSender:

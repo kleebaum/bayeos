@@ -43,9 +43,14 @@ class BayEOSFrame(object):
         except KeyError as err:
             print "Frame Type " + str(err) + " not found."
     
-    def bin_to_frame(self, frame):
+    @staticmethod
+    def to_object(frame):
         """Initializes a BayEOSFrame object from a binary coded frame."""
-        BayEOSFrame(bin=frame)
+        try:
+            frame_type = unpack('=b', frame[0:1])[0]
+            return BayEOSFrame.factory(frame_type)
+        except TypeError as err:
+            print "Error in to_object method: " + str(err)
     
     @staticmethod
     def parse_frame(frame):
@@ -58,33 +63,16 @@ class BayEOSFrame(object):
         parse_result.update(FRAME_TYPES[frame_type]['parse'](frame))
         return parse_result 
 
-    def __init__(self, frame_type=0x1):
-        #self.frame_type = frame_type
-        #self.name = FRAME_TYPES[frame_type]['name']
-        
-        # only initialize needed variables
-#         variables = {}
-#         try:
-#             for each_var in FRAME_TYPES[frame_type]['variables']:
-#                 setattr(self, each_var, eval(each_var))
-#                 variables[str(each_var)] = eval(each_var)
-#         except NameError as err:
-#             print "Error: " + str(err)
-        
-        # create binary Frame Type
+    def __init__(self, frame_type=0x1):        
+        """Creates the binary Frame Type header of BayEOS Frames."""
         self.frame = pack('b', frame_type) 
         
     def to_string(self):
         """Prints a readable form of the BayEOS Frame."""
-        #frame = {}
-        #frame['name'] = self.name
-        #frame['type'] = self.frame_type
-        #frame['value'] = self.parse_frame(self.bin)
-        #for each_var in FRAME_TYPES[self.frame_type]['variables']:
-        #        setattr(self, each_var, eval(each_var))
-        print self.parse_frame(self.frame)
+        print self.parse()
         
-class DataFrame(BayEOSFrame):    
+class DataFrame(BayEOSFrame):  
+    """Data Frame Factory class."""        
     def create(self, values=[], value_type=0x1, offset=0):
         """
         Creates a BayEOS Data Frame.
@@ -186,7 +174,6 @@ class RoutedFrame(BayEOSFrame):
         return {'my_id' : unpack('=h', self.frame[1:3])[0],
                 'pan_id' : unpack('=h', self.frame[3:5])[0],
                 'nested_frame' : nested_frame}
-    
 
         
 class RoutedRSSIFrame(BayEOSFrame):

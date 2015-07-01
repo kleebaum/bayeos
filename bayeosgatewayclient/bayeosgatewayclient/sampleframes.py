@@ -1,13 +1,18 @@
 """Creates example BayEOS Frames."""
 
 from bayeosframe import BayEOSFrame
+from bayeosframe import DataFrame
 # Data Frames
 #data_frame_simple = BayEOSFrame(values=(2,4), value_type=0x22)
 data_frame_simple = BayEOSFrame.factory(0x1)
-data_frame_simple.create([1], value_type=0x21)
-print data_frame_simple.frame
-print data_frame_simple.parse()
+print data_frame_simple.create([2,4])
+#print data_frame_simple.parse()
 #print data_frame_simple.name
+
+test = BayEOSFrame.to_object(data_frame_simple.frame)
+print test.create([2,3])
+print test.parse()
+test.to_string()
 
 command_frame = BayEOSFrame.factory(0x3)
 command_frame.create(1, "cmd")
