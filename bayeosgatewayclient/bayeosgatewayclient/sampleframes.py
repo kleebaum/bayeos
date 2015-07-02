@@ -1,6 +1,7 @@
 """Creates example BayEOS Frames."""
 
 from bayeosframe import BayEOSFrame
+from contextlib import nested
 
 # Data Frames
 data_frame_simple = BayEOSFrame.factory(0x1)
@@ -43,3 +44,17 @@ print "Nested frame: " + str(BayEOSFrame.parse_frame(origin_frame.nested_frame))
 binary_frame = BayEOSFrame.factory(frame_type=0xa)
 binary_frame.create("This a message to be packed as binary data.")
 binary_frame.to_string()
+
+# Delayed Frame
+delayed_frame = BayEOSFrame.factory(0x7)
+delayed_frame.create(nested_frame=data_frame_simple.frame)
+delayed_frame.to_string()
+
+# Timestamp Frames
+timestamp_frame_sec = BayEOSFrame.factory(0x9)
+timestamp_frame_sec.create(data_frame_simple.frame)
+timestamp_frame_sec.to_string()
+
+timestamp_frame_msec = BayEOSFrame.factory(0xc)
+timestamp_frame_msec.create(data_frame_simple.frame)
+timestamp_frame_msec.to_string()
