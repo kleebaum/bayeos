@@ -16,7 +16,7 @@ Do the following steps to install the package via the setup.py script:
 #### Debian
 - Add the following repositories to /etc/apt/sources.list ```deb http://www.bayceer.uni-bayreuth.de/edv/debian wheezy/```
 - run ```apt-get update```
-- install the Debian gateway client package ```apt-get install bayeosgatewayclient```
+- install the Debian gateway client package ```apt-get install python-bayeosgatewayclient```
 
 Alternatively:
 - run ```dpkg -i python-bayeosgatewayclient_0.1-1_all.deb``` as root

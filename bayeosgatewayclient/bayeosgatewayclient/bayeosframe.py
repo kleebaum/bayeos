@@ -23,7 +23,8 @@ class BayEOSFrame(object):
     @abstractmethod
     def create(self, *args):
         """Initialized a BayEOS Frame with its Frame Type specific attributes.
-        @param *args: list of positional arguments"""
+        :param *args: list of positional arguments
+        """
         return
 
     @abstractmethod
@@ -46,8 +47,8 @@ class BayEOSFrame(object):
     @staticmethod
     def to_object(frame):
         """Initializes a BayEOSFrame object from a binary coded frame.
-        @param frame: binary coded String
-        @return BayEOSFrame object
+        :param frame: binary coded String
+        :returns BayEOSFrame object
         """
         try:
             frame_type = unpack('=b', frame[0:1])[0]
@@ -58,7 +59,7 @@ class BayEOSFrame(object):
     @staticmethod
     def parse_frame(frame):
         """Parses a binary coded BayEOS Frame into a Python dictionary.
-        @param frame: binary coded String
+        :param frame: binary coded String
         @return Python dictionary
         """
         try:
@@ -71,8 +72,7 @@ class BayEOSFrame(object):
 class DataFrame(BayEOSFrame):
     """Data Frame Factory class."""
     def create(self, values=(), value_type=0x1, offset=0):
-        """
-        Creates a BayEOS Data Frame.
+        """Creates a BayEOS Data Frame.
         @param values: list with [channel index, value] tuples
         @param value_type: defines Offset and Data Type
         @param offset: length of Channel Offset (if Offset Type is 0x0)
@@ -102,8 +102,7 @@ class DataFrame(BayEOSFrame):
         self.frame += frame
 
     def parse(self):
-        """
-        Parses a binary coded BayEOS Data Frame into a Python dictionary.
+        """Parses a binary coded BayEOS Data Frame into a Python dictionary.
         @return tuples of channel indices and values
         """
         if unpack('=b', self.frame[0:1])[0] != 0x1:
@@ -134,8 +133,7 @@ class DataFrame(BayEOSFrame):
 class CommandFrame(BayEOSFrame):
     """Command and Command Response Frame Factory class."""
     def create(self, cmd_type, cmd):
-        """
-        Creates a BayEOS Command or Command Response Frame.
+        """Creates a BayEOS Command or Command Response Frame.
         @param cmd_type: type of command
         @param cmd: instruction for or response from receiver
         @return Command or Command Response Frame as a binary String + Command
@@ -143,8 +141,7 @@ class CommandFrame(BayEOSFrame):
         self.frame += pack('b', cmd_type) + cmd
 
     def parse(self):
-        """
-        Parses a binary coded Command Frame into a Python dictionary.
+        """Parses a binary coded Command Frame into a Python dictionary.
         @return command type and instruction
         """
         return BayEOSFrame.parse(self), {'cmd_type' : unpack('=b', self.frame[1:2])[0],
@@ -153,16 +150,14 @@ class CommandFrame(BayEOSFrame):
 class MessageFrame(BayEOSFrame):
     """Message and Error Message Frame Factory class."""
     def create(self, message):
-        """
-        Creates a BayEOS Message or Error Message Frame.
+        """Creates a BayEOS Message or Error Message Frame.
         @param message: message to save
         @return Message or Error Message Frame as a binary String + Message
         """
         self.frame += message
 
     def parse(self):
-        """
-        Parses a binary coded Message Frame into a Python dictionary.
+        """Parses a binary coded Message Frame into a Python dictionary.
         @return message
         """
         return BayEOSFrame.parse(self), {'message' : self.frame[1:]}
@@ -179,8 +174,7 @@ class RoutedFrame(BayEOSFrame):
         self.frame += pack('h', my_id) + pack('h', pan_id) + nested_frame
 
     def parse(self):
-        """
-        Parses a binary coded Message Frame into a Python dictionary.
+        """Parses a binary coded Message Frame into a Python dictionary.
         @return message
         """
         nested_frame = BayEOSFrame.parse_frame(self.frame[5:])
@@ -191,8 +185,7 @@ class RoutedFrame(BayEOSFrame):
 class RoutedRSSIFrame(BayEOSFrame):
     """Routed RSSI Frame Factory class."""
     def create(self, my_id, pan_id, frame, rssi=''):
-        """
-        Creates a BayEOS Routed RSSI Frame.
+        """Creates a BayEOS Routed RSSI Frame.
         @param my_id: TX-XBee MyId
         @param pan_id: XBee PANID
         @param rssi: RSSI
@@ -219,8 +212,7 @@ class DelayedFrame(BayEOSFrame):
 class OriginFrame(BayEOSFrame):
     """Origin Frame Factory class."""
     def create(self, origin, nested_frame):
-        """
-        Saves Origin Frame.
+        """Saves Origin Frame.
         @param origin: name to appear in the gateway
         @param frame: must be a valid BayEOS frame
         """
