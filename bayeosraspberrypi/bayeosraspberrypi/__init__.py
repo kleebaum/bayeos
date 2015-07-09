@@ -25,6 +25,28 @@ def enable():
 def address(a):
     for i in range(0,6): # ADR[0]=11, ADR[1]=12...
         GPIO.output(ADR[i],((1<<i) & a))
+        
+# measurement method
+def measure(self, seconds=10):
+    measured_seconds = []
+    temp = []
+    hum = []
+    co2 = []
+    for i in range(0,seconds):
+        temp.append(sht21.read_temperature())
+        hum.append(sht21.read_humidity())
+        co2.append(mcp3424.read_voltage(1))
+        measured_seconds.append(i)
+        sleep(1)
+    mean_temp = numpy.mean(temp)
+    var_temp = numpy.var(temp)    
+    mean_hum = numpy.mean(hum)
+    var_hum = numpy.var(hum)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(measured_seconds,co2)
+    #print "Mean temp.: " + str(mean_temp) + " Variance: " + str(var_temp)
+    #print "Mean humidity: " + str(mean_hum) + " Variance: " + str(var_hum)
+    #print "Slope: " + str(slope)
+    return [mean_temp, var_temp, mean_hum, var_hum, slope, intercept]
 
 # constant variables
 PATH = '/tmp/raspberrypi/'
@@ -50,12 +72,6 @@ start_new_thread(samplesender, ())
 
 # instantiate object of BayEOSWriter Class
 writer = BayEOSWriter(PATH, MAX_CHUNK)
-while True:
-    print 'adding frame\n'
-    writer.save(values=[2.1, 3, 20.5], value_type=0x02, offset=2, origin='Herkunft')
-    writer.save_msg("message", error=True, origin='Herkunft')
-    sleep(3)
-
 
 # init GPIO board
 GPIO.setmode(GPIO.BOARD)
@@ -98,9 +114,12 @@ try:
         address(adr)             # "Spueladresse anlegen"
         GPIO.output(DATA,1);     # Data auf 1
         enable()                 # Data auf Adresse uebenehmen
+        
+        writer.save(measure(3), origin="RaspberryPi Kammer Nr. " + str(adr))
+        
         #writer.save_msg(message="Test", origin="RaspberryPi Kammer Nr. " + str(adr))
         print "adr: %d - %d" % (adr,1)
-        time.sleep(3)          # 60 Sekunden warten, 240 Sekunden Messen
+        #time.sleep(3)          # 60 Sekunden warten, 240 Sekunden Messen
         GPIO.output(DATA,0);     # Data auf 0
         enable()                 # Data auf Adresse uebenehmen
         print "adr: %d - %d" % (adr,0)
