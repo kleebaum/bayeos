@@ -1,7 +1,6 @@
 """Creates example BayEOS Frames."""
 
 from bayeosframe import BayEOSFrame
-from contextlib import nested
 
 # Data Frames
 data_frame_simple = BayEOSFrame.factory(0x1)

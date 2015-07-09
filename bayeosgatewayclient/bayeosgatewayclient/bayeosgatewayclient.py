@@ -1,152 +1,185 @@
 """bayeosgatewayclient"""
-import os, time, datetime, string, urllib, urllib2, base64, glob, tempfile, re
+import os, string, urllib, urllib2, base64, tempfile, re
 from posix import chdir, rename
 from struct import pack, unpack
 from _socket import gethostname
-from time import sleep
-from bayeosframe import BayEOSFrame
+from time import sleep, time
+from glob import glob
+from bayeosframe import BayEOSFrame, FRAME_NAMES
 
-class BayEOSWriter:
-    def __init__(self, path, maxChunk=5000, maxTime=60):
-        """
-        Constructor for a BayEOSWriter instance.
+# Frame Types of BayEOS Frames
+ORIGIN = FRAME_NAMES['Origin Frame']
+MSG = FRAME_NAMES['Message Frame']
+ERR_MSG = FRAME_NAMES['Error Message Frame']
+
+# Length
+LENGTH_OF_DOUBLE = 8
+LENGTH_OF_SHORT = 2
+
+class BayEOSWriter(object):
+    """Writes BayEOSFrames to file."""
+    def __init__(self, path, max_chunk=2500, max_time=60):
+        """Constructor for a BayEOSWriter instance.
         @param path: path of queue directory
-        @param maxChunk: maximum file size when a new file is started
-        @param maxTime: maximum time when a new file is started
+        @param max_chunk: maximum file size in Bytes, when reached a new file is started
+        @param max_time: maximum time when a new file is started
         """
         self.path = path
-        self.maxChunk = maxChunk
-        self.maxTime = maxTime
+        self.max_chunk = max_chunk
+        self.max_time = max_time
         if not os.path.isdir(self.path):
             try:
                 os.mkdir(self.path, 0700)
-            except OSError as e:
-                print 'OSError: ' + str(e)
+            except OSError as err:
+                print 'OSError: ' + str(err)
+                exit()
         chdir(self.path)
-        files = glob.glob('*')
-        for eachFile in files:
-            if string.find(eachFile, '.act'):  # Rename active file
-                rename(eachFile, eachFile.replace('.act', '.rd'))
+        files = glob('*')
+        for each_file in files:
+            if string.find(each_file, '.act'):  # Rename old active file
+                rename(each_file, each_file.replace('.act', '.rd'))
         self.__start_new_file()
-        #self.bayeos = BayEOSFrame()
 
-    def saveFrame(self, frame, ts=0):
-        """Save Timestamp Frame to file. This is a base function.
-        @param frame: must be a valid BayEOS Frame
-        @param ts: Unix epoch time stamp, if zero system time is used
+    def __save_frame(self, frame, timestamp=0):
+        """Saves frames to file.
+        @param frame: must be a valid BayEOS Frame as a binary coded String
+        @param timestamp: Unix epoch time stamp, if zero system time is used
         """
-        if not ts:
-            ts = time.time()
-        self.fp.write(pack('d', ts) + pack('h', len(frame)) + frame)
-        if self.fp.tell() > self.maxChunk or time.time() - self.currentTs > self.maxTime:
-            self.fp.close()
-            rename(self.currentName + '.act', self.currentName + '.rd')
+        if not timestamp:
+            timestamp = time()
+        self.file.write(pack('d', timestamp) + pack('h', len(frame)) + frame)
+        if self.file.tell() >= self.max_chunk or time() - self.current_timestamp >= self.max_time:
+            self.file.close()
+            rename(self.current_name + '.act', self.current_name + '.rd')
             self.__start_new_file()
 
     def __start_new_file(self):
         """Opens a new file with ending .act and determines current file name."""
-        self.currentTs = time.time()
-        [sec, usec] = string.split(str(self.currentTs), '.')
-        self.currentName = sec + '-' + usec
-        self.fp = open(self.currentName + '.act', 'wb')
+        self.current_timestamp = time()
+        [sec, usec] = string.split(str(self.current_timestamp), '.')
+        self.current_name = sec + '-' + usec
+        self.file = open(self.current_name + '.act', 'wb')
 
-    def save(self, values, value_type=0x1, offset=0, ts=0, origin=''):
-        """Generic frame saving method."""
-        data_frame = BayEOSFrame.factory(frame_type=0x1)
+    def save(self, values, value_type=0x1, offset=0, timestamp=0, origin=None):
+        """Generic frame saving method.
+        @param values: list with [channel index, value] tuples or just values (..,..) or [..,..]
+        @param value_type: defines Offset and Data Type
+        @param offset: defines Channel Offset
+        @param timestamp: Unix epoch time stamp, if zero system time is used
+        @param origin: if defined, it is used as a name
+        """
+        data_frame = BayEOSFrame.factory()
         data_frame.create(values, value_type, offset)
         if not origin:
-            self.saveFrame(data_frame.frame, ts)
+            self.__save_frame(data_frame.frame, timestamp)
         else:
-            origin_frame = BayEOSFrame(frame_type=0xb)
-            origin_frame.create(origin, frame=data_frame.frame)
-            self.saveFrame(origin_frame.frame, ts)
-            print "Origin Frame saved."
+            origin_frame = BayEOSFrame.factory(ORIGIN)
+            origin_frame.create(origin=origin, nested_frame=data_frame.frame)
+            self.__save_frame(origin_frame.frame, timestamp)
+            print 'Origin Frame saved.'
 
-class BayEOSSender:
-    def __init__(self, path, name, url, pw, user='import',
-                 absoluteTime=True, rm=True, gatewayVersion='1.9'):
+    def save_msg(self, message, error=False, timestamp=0, origin=None):
+        """Saves Messages or Error Messages to Gateway.
+        @param message: String to send
+        @param error: when true, an Error Message is sent
+        @param timestamp: Unix epoch time stamp, if zero system time is used
         """
-        Constructor for BayEOSSender instance.
+        msg_frame = BayEOSFrame.factory(MSG)
+        if error:
+            msg_frame = BayEOSFrame.factory(ERR_MSG)
+        msg_frame.create(message)
+        if not origin:
+            self.__save_frame_to_file(msg_frame.frame, timestamp)
+        else:
+            origin_frame = BayEOSFrame.factory(ORIGIN)
+            origin_frame.create(origin=origin, nested_frame=msg_frame.frame)
+            self.__save_frame_to_file(origin_frame.frame, timestamp)
+            print 'Origin Frame saved.'
+
+class BayEOSSender(object):
+    """Sends content of BayEOS writer files to Gateway."""
+    def __init__(self, path, name, url, password='', user='import',
+                 absolute_time=True, remove=True, gateway_version='1.9'):
+        """Constructor for BayEOSSender instance.
         @param path: path where BayEOSWriter puts files
         @param name: sender name
         @param url: gateway url e.g. http://<gateway>/gateway/frame/saveFlat
-        @param pw: password on gateway
+        @param password: password on gateway
         @param user: user on gateway
-        @param absoluteTime: if set to false, relative time is used (delay)
-        @param rm: if set to false files are kept as .bak file in the BayEOSWriter directory
-        @param gatewayVersion: gateway version
+        @param absolute_time: if set to false, relative time is used (delay)
+        @param remove: if set to false files are kept as .bak file in the BayEOSWriter directory
+        @param gateway_version: gateway version
         """
-        if not pw:
-            exit("No gateway password was found.\n")
+        if not password:
+            exit('No gateway password was found.')
         self.path = path
         self.name = name
         self.url = url
-        self.pw = pw
+        self.password = password
         self.user = user
-        self.absoluteTime = absoluteTime
-        self.rm = rm
-        self.gatewayVersion = gatewayVersion
-        self.lengthOfDouble = len(pack('d', time.time()))
-        self.lengthOfShort = len(pack('h', 1))
-        self.ref = time.time() - (datetime.datetime(2000, 1, 1) -
-                                  datetime.datetime(1970, 1, 1)).total_seconds()
+        self.absolute_time = absolute_time
+        self.remove = remove
+        self.gateway_version = gateway_version
 
     def send(self):
+        """Keeps sending until all files are sent or an error occurs.
+        @return number of post requests (i.e. posted frames) as an integer
         """
-        Keeps sending until all files are sent or an error occurs.
-        @return number of post requests as an integer
-        """
-        count = 0
-        post = self.sendFile()
+        count_frames = 0
+        post = self.__send_file()
         while post:
-            count += post
-            post = self.sendFile()
-        return count
+            count_frames += post
+            post = self.__send_file()
+        return count_frames
 
-    def sendFile(self):
-        """
-        Reads one file from queue and tries to send it to the gateway.
-        On success file is deleted or renamed to *.bak ending.
+    def __send_file(self):
+        """Reads one file from queue and tries to send it to the gateway.
+        On success the file is deleted or renamed to *.bak ending.
         Always the oldest file is used.
         @return number of post requests as an integer
         """
-        chdir(self.path)
-        files = glob.glob('*.rd')
+        try:
+            chdir(self.path)
+        except OSError as err:
+            exit('OSError: ' + str(err) + '. Start BayEOSWriter first.')
+        files = glob('*.rd')
         if len(files) == 0:
             return 0
-        fp = open(files[0], 'rb')  # opens oldest file
-        data = '&sender=' + urllib.quote_plus(self.name)
+        current_file = open(files[0], 'rb')  # opens oldest file
+        post_request = '&sender=' + urllib.quote_plus(self.name)
         frames = ''
-        count = 0
-        ts = fp.read(self.lengthOfDouble)
-        while ts:  # until end of file
-            ts = unpack('=d', ts)[0]
-            frameLength = unpack('=h', fp.read(self.lengthOfShort))[0]
-            frame = fp.read(frameLength)
+        count_frames = 0
+        timestamp = current_file.read(LENGTH_OF_DOUBLE)
+        while timestamp:  # until end of file
+            timestamp = unpack('=d', timestamp)[0]
+            frame_length = unpack('=h', current_file.read(LENGTH_OF_SHORT))[0]
+            frame = current_file.read(frame_length)
             if frame:
-                count += 1
-                if self.absoluteTime:  # Timestamp Frame
-                    if self.gatewayVersion == '1.8':  # second resolution from 2000-01-01
-                        timestampFrame = pack('b', 0x9) + pack('l', round(ts - self.ref)) + frame
+                count_frames += 1
+                if self.absolute_time:  # Timestamp Frame
+                    if self.gateway_version == '1.8':  # second resolution from 2000-01-01
+                        timestamp_frame = BayEOSFrame.factory(0x9)
+                        timestamp_frame.create(frame, timestamp)
                     else:  # millisecond resolution from 1970-01-01
-                        timestampFrame = pack('b', 0xc) + pack('q', round(ts * 1000)) + frame
+                        timestamp_frame = BayEOSFrame.factory(0xc)
+                        timestamp_frame.create(frame, timestamp)
                 else:  # Delayed Frame
-                    timestampFrame = pack('b', 0x7) + pack('l',
-                                                           round((time.time() - ts) * 1000)) + frame
-                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestampFrame)
-            ts = fp.read(self.lengthOfDouble)
-        fp.close()
+                    timestamp_frame = BayEOSFrame.factory(0x7)
+                    timestamp_frame.create(frame, timestamp)
+                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestamp_frame.frame)
+            timestamp = current_file.read(LENGTH_OF_DOUBLE)
+        current_file.close()
         if frames:  # content found for post request
-            res = self.post(data + frames)
+            res = self.__post(post_request + frames)
             if res == 1:
-                if self.rm:
+                if self.remove:
                     os.remove(files[0])
                 else:
                     rename(files[0], files[0].replace('.rd', '.bak'))
             elif res == 0:
                 rename(files[0], files[0].replace('.rd', '.bak'))
                 exit('Error posting. File will be kept as ' + str(files[0].replace('.rd', '.bak')))
-            return count
+            return count_frames
         else:  # empty file
             if os.stat(files[0]).st_size:
                 rename(files[0], files[0].replace('.rd', '.bak'))
@@ -154,38 +187,37 @@ class BayEOSSender:
                 os.remove(files[0])
         return 0
 
-    def post(self, data):
-        """
-        Posts frames to gateway.
-        @param postData
+    def __post(self, post_request):
+        """Posts frames to gateway.
+        @param post_request: query string for HTML POST request
         @return success (1) or failure (0)
         """
-        passwordManager = urllib2.HTTPPasswordMgrWithDefaultRealm()
-        passwordManager.add_password(None, self.url, self.user, self.pw)
-        handler = urllib2.HTTPBasicAuthHandler(passwordManager)
+        password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        password_manager.add_password(None, self.url, self.user, self.password)
+        handler = urllib2.HTTPBasicAuthHandler(password_manager)
         opener = urllib2.build_opener(handler)
-        req = urllib2.Request(self.url, data)
+        req = urllib2.Request(self.url, post_request)
         req.add_header('Accept', 'text/html')
         req.add_header('User-Agent', 'BayEOS-Python-Gateway-Client/1.0.0')
         try:
             opener.open(req)
             return 1
-        except urllib2.HTTPError as e:
-            if e.code == 401:
+        except urllib2.HTTPError as err:
+            if err.code == 401:
                 exit('Authentication failed.\n')
-            elif e.code == 404:
+            elif err.code == 404:
                 exit('URL ' + self.url + ' is invalid.\n')
             else:
-                exit('Post error: ' + str(e) + '.\n')
-        except urllib2.URLError as e:
-            exit('URLError: ' + str(e))
+                exit('Post error: ' + str(err) + '.\n')
+        except urllib2.URLError as err:
+            exit('URLError: ' + str(err))
         return 0
 
-class BayEOSGatewayClient:
+class BayEOSGatewayClient(object):
+    """Combines writer and sender for every device."""
 
     def __init__(self, names, options1={}, defaults1={}):
-        """
-        Creates an instance of BayEOSGatewayClient.
+        """Creates an instance of BayEOSGatewayClient.
         @param names: name dictionary e.g. 'Fifo.0', 'Fifo.1'...
         Name is used for storage directory e.g. /tmp/Fifo.0.
         @param options: dictionary of options. Three forms are possible.
@@ -262,9 +294,7 @@ class BayEOSGatewayClient:
         return self.options[key]
 
     def run(self):
-        """
-        Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name.
-        """
+        """Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name."""
         for i in range(0, len(self.names)):
             self.i = i
             self.name = self.names[i]
@@ -299,7 +329,7 @@ class BayEOSGatewayClient:
                 sender = BayEOSSender(path,
                                       self.getOption('sender'),
                                       self.getOption('bayeosgateway_url'),
-                                      self.getOption('bayeosgateway_pw'),
+                                      self.getOption('bayeosgateway_password'),
                                       self.getOption('bayeosgateway_user'),
                                       self.getOption('absolute_time'),
                                       self.getOption('rm'),

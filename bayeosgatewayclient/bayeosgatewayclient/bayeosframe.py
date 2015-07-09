@@ -5,6 +5,9 @@ from time import time
 from datetime import datetime
 from abc import abstractmethod
 
+REFERENCE_TIME_DIF = (datetime(2000, 1, 1) -
+                              datetime(1970, 1, 1)).total_seconds()
+
 class BayEOSFrame(object):
     """Factory Class for BayEOS Frames."""
 
@@ -14,7 +17,7 @@ class BayEOSFrame(object):
         try:
             return FRAME_TYPES[frame_type]['class'](frame_type)
         except KeyError as err:
-            print "Frame Type " + str(err) + " not found."
+            print 'Frame Type ' + str(err) + ' not found.'
 
     def __init__(self, frame_type=0x1):
         """Creates the binary Frame Type header of BayEOS Frames."""
@@ -36,13 +39,13 @@ class BayEOSFrame(object):
     def to_string(self):
         """Prints a readable form of the BayEOS Frame."""
         print self.parse()
-    
+
     def get_name(self):
         """Returns the Frame name regarding its Frame Type."""
         return FRAME_TYPES[self.frame_type]['name']
-    
+
     def get_payload(self):
-        """Returns a Python tuple containing the Payload.""" 
+        """Returns a Python tuple containing the Payload."""
         return self.parse()[1:]
 
     @staticmethod
@@ -55,7 +58,7 @@ class BayEOSFrame(object):
             frame_type = unpack('=b', frame[0:1])[0]
             return BayEOSFrame.factory(frame_type)
         except TypeError as err:
-            print "Error in to_object method: " + str(err)
+            print 'Error in to_object method: ' + str(err)
 
     @staticmethod
     def parse_frame(frame):
@@ -68,7 +71,7 @@ class BayEOSFrame(object):
             bayeos_frame.frame = frame
             return bayeos_frame.parse()
         except AttributeError as err:
-            print "Error in parse_frame method: " + str(err)
+            print 'Error in parse_frame method: ' + str(err)
 
 class DataFrame(BayEOSFrame):
     """Data Frame Factory class."""
@@ -85,7 +88,7 @@ class DataFrame(BayEOSFrame):
         try:
             val_format = DATA_TYPES[data_type]['format']  # search DATA_TYPES Dictionary
         except KeyError as err:
-            print "Error in create method for Data Frame: Data Type " + str(err) + " is not defined."
+            print 'Error in create method for Data Frame: Data Type ' + str(err) + ' is not defined.'
             return
 
         if offset_type == 0x0:  # Data Frame with channel offset
@@ -106,7 +109,7 @@ class DataFrame(BayEOSFrame):
         @return tuples of channel indices and values
         """
         if unpack('=b', self.frame[0:1])[0] != 0x1:
-            print "This is not a Data Frame."
+            print 'This is not a Data Frame.'
             return False
         value_type = unpack('=b', self.frame[1:2])[0]
         offset_type = 0xf0 & value_type
@@ -268,9 +271,8 @@ class TimestampFrameSec(BayEOSFrame):
         if not timestamp:
             timestamp = time()
         # seconds since 1st of January, 2000
-        reference = time() - (datetime(2000, 1, 1) -
-                              datetime(1970, 1, 1)).total_seconds()
-        self.frame += pack('l', round(timestamp - reference)) + nested_frame
+        time_since_reference = round(timestamp - REFERENCE_TIME_DIF)
+        self.frame += pack('l', time_since_reference) + nested_frame
         self.nested_frame = nested_frame
 
     def parse(self):
@@ -330,3 +332,8 @@ FRAME_TYPES = {0x1: {'name' : 'Data Frame',
                      'class' : OriginFrame},
                0xc: {'name' : 'Timestamp Frame',
                      'class' : TimestampFrame}}
+
+# swaps keys and values in FRAME_TYPES Dictionary
+FRAME_NAMES = {value['name']:key for key, value in FRAME_TYPES.iteritems()}
+# for key, value in FRAME_NAMES.iteritems():
+#     print key, value
