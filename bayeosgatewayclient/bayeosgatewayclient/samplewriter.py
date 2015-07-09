@@ -8,6 +8,6 @@ writer = BayEOSWriter(PATH, 50)
 
 while True:
     print 'adding frame\n'
-    writer.save(values=[2.1, 3, 20.5], value_type=0x02, offset=2, origin='Herkunft')
-    #writer.save_msg("message", error=True, origin='Herkunft')
+    #writer.save(values=[2.1, 3, 20.5], value_type=0x02, offset=2, origin='Herkunft')
+    writer.save_msg("message", error=True, origin='Herkunft')
     sleep(1)

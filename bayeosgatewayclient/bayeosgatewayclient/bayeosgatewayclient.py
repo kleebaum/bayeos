@@ -93,7 +93,7 @@ class BayEOSWriter(object):
         else:
             origin_frame = BayEOSFrame.factory(ORIGIN)
             origin_frame.create(origin=origin, nested_frame=msg_frame.frame)
-            self.__save_frame_to_file(origin_frame.frame, timestamp)
+            self.__save_frame(origin_frame.frame, timestamp)
             print 'Origin Frame saved.'
 
 class BayEOSSender(object):
