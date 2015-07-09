@@ -89,7 +89,7 @@ class BayEOSWriter(object):
             msg_frame = BayEOSFrame.factory(ERR_MSG)
         msg_frame.create(message)
         if not origin:
-            self.__save_frame_to_file(msg_frame.frame, timestamp)
+            self.__save_frame(msg_frame.frame, timestamp)
         else:
             origin_frame = BayEOSFrame.factory(ORIGIN)
             origin_frame.create(origin=origin, nested_frame=msg_frame.frame)

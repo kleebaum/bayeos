@@ -28,6 +28,7 @@ def address(a):
 
 # constant variables
 PATH = '/tmp/raspberrypi/'
+MAX_CHUNK = 100 
 ADR = [11, 12, 13, 15, 16, 18] # GPIO 17, 18, 27, 22, 23, 24
 DATA = 24 # GPIO 8
 EN = 26   # GPIO 7
@@ -48,7 +49,13 @@ def samplesender():
 start_new_thread(samplesender, ())
 
 # instantiate object of BayEOSWriter Class
-writer = BayEOSWriter(PATH)
+writer = BayEOSWriter(PATH, MAX_CHUNK)
+while True:
+    print 'adding frame\n'
+    writer.save(values=[2.1, 3, 20.5], value_type=0x02, offset=2, origin='Herkunft')
+    writer.save_msg("message", error=True, origin='Herkunft')
+    sleep(3)
+
 
 # init GPIO board
 GPIO.setmode(GPIO.BOARD)
@@ -91,7 +98,7 @@ try:
         address(adr)             # "Spueladresse anlegen"
         GPIO.output(DATA,1);     # Data auf 1
         enable()                 # Data auf Adresse uebenehmen
-        writer.save_msg(message="Test", origin="RaspberryPi Kammer Nr. " + str(adr))
+        #writer.save_msg(message="Test", origin="RaspberryPi Kammer Nr. " + str(adr))
         print "adr: %d - %d" % (adr,1)
         time.sleep(3)          # 60 Sekunden warten, 240 Sekunden Messen
         GPIO.output(DATA,0);     # Data auf 0
