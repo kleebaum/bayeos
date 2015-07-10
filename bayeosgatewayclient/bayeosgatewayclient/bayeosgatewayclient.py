@@ -5,12 +5,12 @@ from struct import pack, unpack
 from _socket import gethostname
 from time import sleep, time
 from glob import glob
-from bayeosframe import BayEOSFrame, FRAME_NAMES
+from bayeosframe import BayEOSFrame#, FRAME_NAMES
 
 # Frame Types of BayEOS Frames
-ORIGIN = FRAME_NAMES['Origin Frame']
-MSG = FRAME_NAMES['Message Frame']
-ERR_MSG = FRAME_NAMES['Error Message Frame']
+ORIGIN = 0xb #FRAME_NAMES['Origin Frame']
+MSG = 0x4 #FRAME_NAMES['Message Frame']
+ERR_MSG = 0x5 #FRAME_NAMES['Error Message Frame']
 
 # Length
 LENGTH_OF_DOUBLE = 8

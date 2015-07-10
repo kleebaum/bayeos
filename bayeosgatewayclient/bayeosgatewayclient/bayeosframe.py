@@ -338,6 +338,6 @@ FRAME_TYPES = {0x1: {'name' : 'Data Frame',
                      'class' : TimestampFrame}}
 
 # swaps keys and values in FRAME_TYPES Dictionary
-FRAME_NAMES = {value['name']:key for key, value in FRAME_TYPES.iteritems()}
+# FRAME_NAMES = {value['name']:key for key, value in FRAME_TYPES.iteritems()}
 # for key, value in FRAME_NAMES.iteritems():
 #     print key, value
