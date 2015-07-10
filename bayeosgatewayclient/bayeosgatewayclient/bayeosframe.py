@@ -108,7 +108,7 @@ class DataFrame(BayEOSFrame):
         """Parses a binary coded BayEOS Data Frame into a Python dictionary.
         @return tuples of channel indices and values
         """
-        if unpack('=b', self.frame[0:1])[0] != 0x1:
+        if unpack('<b', self.frame[0:1])[0] != 0x1:
             print 'This is not a Data Frame.'
             return False
         value_type = unpack('<b', self.frame[1:2])[0]
@@ -128,7 +128,7 @@ class DataFrame(BayEOSFrame):
                 pos += 1
             else:
                 key += 1
-            value = unpack('=' + val_format, self.frame[pos:pos + val_length])[0]
+            value = unpack('<' + val_format, self.frame[pos:pos + val_length])[0]
             pos += val_length
             payload[key] = value
         return BayEOSFrame.parse(self), {'values' : payload}
@@ -214,17 +214,19 @@ class DelayedFrame(BayEOSFrame):
         @param nested_frame: valid BayEOS Frame
         @param delay: delay in milliseconds
         """
+        if not delay:
+            delay = time()
         timestamp = round((time() - delay) * 1000)
         print timestamp
-        self.frame += pack('l', timestamp) + nested_frame
+        self.frame += pack('<l', timestamp) + nested_frame
         self.nested_frame = nested_frame
 
     def parse(self):
         """Parses a binary coded Delayed Frame into a Python dictionary.
         @return timestamp and nested_frame as a binary String
         """
-        nested_frame = BayEOSFrame.parse_frame(self.frame[9:])
-        return BayEOSFrame.parse(self), {'timestamp' : unpack('=l', self.frame[1:5])[0],
+        nested_frame = BayEOSFrame.parse_frame(self.frame[5:])
+        return BayEOSFrame.parse(self), {'timestamp' : unpack('<l', self.frame[1:5])[0],
                                          'nested_frame' : nested_frame}
 
 class OriginFrame(BayEOSFrame):
@@ -274,15 +276,15 @@ class TimestampFrameSec(BayEOSFrame):
             timestamp = time()
         # seconds since 1st of January, 2000
         time_since_reference = round(timestamp - REFERENCE_TIME_DIF)
-        self.frame += pack('l', time_since_reference) + nested_frame
+        self.frame += pack('<l', time_since_reference) + nested_frame
         self.nested_frame = nested_frame
 
     def parse(self):
         """Parses a binary coded Timestamp Frame (s) into a Python dictionary.
         @return timestamp and nested_frame as a binary String
         """
-        nested_frame = BayEOSFrame.parse_frame(self.frame[9:])
-        return BayEOSFrame.parse(self), {'timestamp' : unpack('<d', self.frame[1:9])[0],
+        nested_frame = BayEOSFrame.parse_frame(self.frame[5:])
+        return BayEOSFrame.parse(self), {'timestamp' : unpack('<l', self.frame[1:5])[0],
                                          'nested_frame' : nested_frame}
 
 class TimestampFrame(BayEOSFrame):

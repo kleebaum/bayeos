@@ -7,7 +7,7 @@ from thread import start_new_thread
 PATH = '/tmp/bayeos-device/'
 NAME = 'Python-Thread-Example'
 URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
-writer = BayEOSWriter(PATH, 100)
+writer = BayEOSWriter(PATH, max_chunk=1000)
 writer.save_msg('Writer was started.')
 sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
 

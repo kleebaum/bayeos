@@ -47,7 +47,7 @@ class BayEOSWriter(object):
         """
         if not timestamp:
             timestamp = time()
-        self.file.write(pack('d', timestamp) + pack('h', len(frame)) + frame)
+        self.file.write(pack('<d', timestamp) + pack('<h', len(frame)) + frame)
         if self.file.tell() >= self.max_chunk or time() - self.current_timestamp >= self.max_time:
             self.file.close()
             rename(self.current_name + '.act', self.current_name + '.rd')
@@ -161,8 +161,8 @@ class BayEOSSender(object):
         count_frames = 0
         timestamp = current_file.read(LENGTH_OF_DOUBLE)
         while timestamp:  # until end of file
-            timestamp = unpack('=d', timestamp)[0]
-            frame_length = unpack('=h', current_file.read(LENGTH_OF_SHORT))[0]
+            timestamp = unpack('<d', timestamp)[0]
+            frame_length = unpack('<h', current_file.read(LENGTH_OF_SHORT))[0]
             frame = current_file.read(frame_length)
             if frame:
                 count_frames += 1
