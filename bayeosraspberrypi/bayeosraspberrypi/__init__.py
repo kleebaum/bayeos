@@ -111,7 +111,7 @@ try:
         GPIO.output(DATA,0);     # Spuelvorgang beenden
         enable()                 # Data auf Adresse uebenehmen
         print "adr: %d - %d" % (0,0)
-        address(adr)             # "Spueladresse anlegen"
+        address(adr)             # "Kammeradresse anlegen"
         GPIO.output(DATA,1);     # Data auf 1
         enable()                 # Data auf Adresse uebenehmen
         

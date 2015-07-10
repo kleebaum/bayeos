@@ -4,24 +4,14 @@ from time import sleep
 from bayeosgatewayclient import BayEOSWriter, BayEOSSender
 from thread import start_new_thread
 
-def samplesender():    
-    """Creates an example sender."""
-    PATH = '/tmp/bayeos-device1/'
-    NAME = 'Python-Test-Device'
-    URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
-    sender = BayEOSSender(PATH, NAME, URL, 'bayeos', 'root')
-
-    while True:
-        res = sender.send()
-        if res > 0:
-            print 'Successfully sent ' + str(res) + ' post requests.\n'
-        sleep(5)
-        
-start_new_thread(samplesender, ())
-
-"""Creates an example writer."""
-PATH = '/tmp/bayeos-device1/'
+PATH = '/tmp/bayeos-device/'
+NAME = 'Python-Thread-Example'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 writer = BayEOSWriter(PATH, 100)
+writer.save_msg('Writer was started.')
+sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
+
+start_new_thread(sender.run, (5,))
 
 while True:
     print 'adding frame\n'

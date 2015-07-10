@@ -95,6 +95,16 @@ class BayEOSWriter(object):
             origin_frame.create(origin=origin, nested_frame=msg_frame.frame)
             self.__save_frame(origin_frame.frame, timestamp)
             print 'Origin Frame saved.'
+            
+    def flush(self):
+        """Close the current used file and renames it from .act to .rd.
+        Starts a new file.
+        """
+        self.save_msg('Flushed writer.')
+        self.file.close()
+        rename(self.current_name + '.act', self.current_name + '.rd')
+        self.__start_new_file()
+        
 
 class BayEOSSender(object):
     """Sends content of BayEOS writer files to Gateway."""
@@ -212,6 +222,16 @@ class BayEOSSender(object):
         except urllib2.URLError as err:
             exit('URLError: ' + str(err))
         return 0
+    
+    def run(self, sleep_sec):
+        """Tries to send frames within a certain interval.
+        @param sleep_sec: specifies the sleep time
+        """
+        while True:
+            res = self.send()
+            if res > 0:
+                print 'Successfully sent ' + str(res) + ' frames.\n'
+            sleep(sleep_sec)
 
 class BayEOSGatewayClient(object):
     """Combines writer and sender for every device."""

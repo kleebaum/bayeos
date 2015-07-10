@@ -1,6 +1,7 @@
 """Creates example BayEOS Frames."""
 
 from bayeosframe import BayEOSFrame
+from time import time, sleep
 
 # Data Frames
 data_frame_simple = BayEOSFrame.factory(0x1)
@@ -46,14 +47,14 @@ binary_frame.to_string()
 
 # Delayed Frame
 delayed_frame = BayEOSFrame.factory(0x7)
-delayed_frame.create(nested_frame=data_frame_simple.frame)
+delayed_frame.create(nested_frame=data_frame_simple.frame, delay=time())
 delayed_frame.to_string()
 
 # Timestamp Frames
 timestamp_frame_sec = BayEOSFrame.factory(0x9)
 timestamp_frame_sec.create(data_frame_simple.frame)
 timestamp_frame_sec.to_string()
-
+ 
 timestamp_frame_msec = BayEOSFrame.factory(0xc)
 timestamp_frame_msec.create(data_frame_simple.frame)
 timestamp_frame_msec.to_string()
