@@ -1,24 +1,30 @@
 """bayeosgatewayclient"""
-import os, string, urllib, urllib2, base64, tempfile, re
+import os, string, urllib, urllib2, base64, re
+from os import fork
 from posix import chdir, rename
+from tempfile import gettempdir
 from struct import pack, unpack
 from _socket import gethostname
 from time import sleep, time
 from glob import glob
-from bayeosframe import BayEOSFrame#, FRAME_NAMES
+from bayeosframe import BayEOSFrame
+from abc import abstractmethod
 
-# Frame Types of BayEOS Frames
-ORIGIN = 0xb #FRAME_NAMES['Origin Frame']
-MSG = 0x4 #FRAME_NAMES['Message Frame']
-ERR_MSG = 0x5 #FRAME_NAMES['Error Message Frame']
-
-# Length
-LENGTH_OF_DOUBLE = 8
-LENGTH_OF_SHORT = 2
+DEFAULTS = {'path' : gettempdir(),
+            'writer_sleep_time' : 15,
+            'max_chunk' : 2500,
+            'max_time' : 60,
+            'value_type' : 0x1,
+            'sender_sleep_time' : 5,
+            'sender' : '',
+            'bayeosgateway_user' : 'import',
+            'absolute_time' : True,
+            'remove' : True,
+            'sleep_between_children' : 0}
 
 class BayEOSWriter(object):
     """Writes BayEOSFrames to file."""
-    def __init__(self, path, max_chunk=2500, max_time=60):
+    def __init__(self, path=DEFAULTS['path'], max_chunk=DEFAULTS['max_chunk'], max_time=DEFAULTS['max_time']):
         """Constructor for a BayEOSWriter instance.
         @param path: path of queue directory
         @param max_chunk: maximum file size in Bytes, when reached a new file is started
@@ -31,13 +37,15 @@ class BayEOSWriter(object):
             try:
                 os.mkdir(self.path, 0700)
             except OSError as err:
-                print 'OSError: ' + str(err)
-                exit()
+                exit('OSError: ' + str(err))
         chdir(self.path)
         files = glob('*')
         for each_file in files:
             if string.find(each_file, '.act'):  # Rename old active file
-                rename(each_file, each_file.replace('.act', '.rd'))
+                try:
+                    rename(each_file, each_file.replace('.act', '.rd'))
+                except OSError as err:
+                    print 'OSError: ' + str(err)
         self.__start_new_file()
 
     def __save_frame(self, frame, timestamp=0):
@@ -68,12 +76,12 @@ class BayEOSWriter(object):
         @param timestamp: Unix epoch time stamp, if zero system time is used
         @param origin: if defined, it is used as a name
         """
-        data_frame = BayEOSFrame.factory()
+        data_frame = BayEOSFrame.factory(0x1)
         data_frame.create(values, value_type, offset)
         if not origin:
             self.__save_frame(data_frame.frame, timestamp)
         else:
-            origin_frame = BayEOSFrame.factory(ORIGIN)
+            origin_frame = BayEOSFrame.factory(0xb)
             origin_frame.create(origin=origin, nested_frame=data_frame.frame)
             self.__save_frame(origin_frame.frame, timestamp)
             print 'Origin Frame saved.'
@@ -84,14 +92,16 @@ class BayEOSWriter(object):
         @param error: when true, an Error Message is sent
         @param timestamp: Unix epoch time stamp, if zero system time is used
         """
-        msg_frame = BayEOSFrame.factory(MSG)
+        
         if error:
-            msg_frame = BayEOSFrame.factory(ERR_MSG)
+            msg_frame = BayEOSFrame.factory(0x5) # instantiate ErrorMessage Frame
+        else:
+            msg_frame = BayEOSFrame.factory(0x4) # instantiate Message Frame
         msg_frame.create(message)
         if not origin:
             self.__save_frame(msg_frame.frame, timestamp)
         else:
-            origin_frame = BayEOSFrame.factory(ORIGIN)
+            origin_frame = BayEOSFrame.factory(0xb)
             origin_frame.create(origin=origin, nested_frame=msg_frame.frame)
             self.__save_frame(origin_frame.frame, timestamp)
             print 'Origin Frame saved.'
@@ -103,13 +113,12 @@ class BayEOSWriter(object):
         self.save_msg('Flushed writer.')
         self.file.close()
         rename(self.current_name + '.act', self.current_name + '.rd')
-        self.__start_new_file()
-        
+        self.__start_new_file()        
 
 class BayEOSSender(object):
     """Sends content of BayEOS writer files to Gateway."""
-    def __init__(self, path, name, url, password='', user='import',
-                 absolute_time=True, remove=True, gateway_version='1.9'):
+    def __init__(self, path=DEFAULTS['path'], name='', url='', password='', user=DEFAULTS['bayeosgateway_user'],
+                 absolute_time=DEFAULTS['absolute_time'], remove=DEFAULTS['remove']):
         """Constructor for BayEOSSender instance.
         @param path: path where BayEOSWriter puts files
         @param name: sender name
@@ -129,7 +138,6 @@ class BayEOSSender(object):
         self.user = user
         self.absolute_time = absolute_time
         self.remove = remove
-        self.gateway_version = gateway_version
 
     def send(self):
         """Keeps sending until all files are sent or an error occurs.
@@ -159,31 +167,31 @@ class BayEOSSender(object):
         post_request = '&sender=' + urllib.quote_plus(self.name)
         frames = ''
         count_frames = 0
-        timestamp = current_file.read(LENGTH_OF_DOUBLE)
+        timestamp = current_file.read(8)
         while timestamp:  # until end of file
             timestamp = unpack('<d', timestamp)[0]
-            frame_length = unpack('<h', current_file.read(LENGTH_OF_SHORT))[0]
+            frame_length = unpack('<h', current_file.read(2))[0]
             frame = current_file.read(frame_length)
             if frame:
                 count_frames += 1
                 if self.absolute_time:  # Timestamp Frame
-                    if self.gateway_version == '1.8':  # second resolution from 2000-01-01
-                        timestamp_frame = BayEOSFrame.factory(0x9)
-                        timestamp_frame.create(frame, timestamp)
-                    else:  # millisecond resolution from 1970-01-01
-                        timestamp_frame = BayEOSFrame.factory(0xc)
-                        timestamp_frame.create(frame, timestamp)
+                    # millisecond resolution from 1970-01-01
+                    timestamp_frame = BayEOSFrame.factory(0xc)
+                    timestamp_frame.create(frame, timestamp)
                 else:  # Delayed Frame
                     timestamp_frame = BayEOSFrame.factory(0x7)
                     timestamp_frame.create(frame, timestamp)
                 frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestamp_frame.frame)
-            timestamp = current_file.read(LENGTH_OF_DOUBLE)
+            timestamp = current_file.read(8)
         current_file.close()
         if frames:  # content found for post request
             res = self.__post(post_request + frames)
             if res == 1:
                 if self.remove:
-                    os.remove(files[0])
+                    try:
+                        os.remove(files[0])
+                    except OSError as err:
+                        exit('OSError: ' + str(err))
                 else:
                     rename(files[0], files[0].replace('.rd', '.bak'))
             elif res == 0:
@@ -230,18 +238,19 @@ class BayEOSSender(object):
         while True:
             res = self.send()
             if res > 0:
-                print 'Successfully sent ' + str(res) + ' frames.\n'
+                print 'Successfully sent ' + str(res) + ' frames.'
             sleep(sleep_sec)
 
 class BayEOSGatewayClient(object):
-    """Combines writer and sender for every device."""
+    """Combines writer and sender for every device."""  
 
-    def __init__(self, names, options1={}, defaults1={}):
+    def __init__(self, names=[], options={}):
         """Creates an instance of BayEOSGatewayClient.
-        @param names: name dictionary e.g. 'Fifo.0', 'Fifo.1'...
-        Name is used for storage directory e.g. /tmp/Fifo.0.
-        @param options: dictionary of options. Three forms are possible.
+        @param names: list of device names e.g. 'Fifo.0', 'Fifo.1', ...
+        The names are used to determine storage directories e.g. /tmp/Fifo.0.
+        @param options: dictionary of options.
         """
+        # check whether a valid list of device names is given
         if not isinstance(names, list):
             names = names.split(', ')
         if len(set(names)) < len(names):
@@ -249,56 +258,50 @@ class BayEOSGatewayClient(object):
         if len(names) == 0:
             exit('No name given.')
 
+        # if more than one device name is given, use sender name as prefix 
         prefix = ''
         try:
-            options1['sender']
-            if isinstance(options1['sender'], list):
-                options1['sender'] = '_'.join(options1['sender'])
+            options['sender']
+            if isinstance(options['sender'], list):
+                exit('Sender needs to be given as a String, not a list.')
+                #options['sender'] = '_'.join(options['sender'])
             if len(names) > 1:
-                prefix = options1['sender'] + '/'
-                del options1['sender']
-
+                prefix = options['sender'] + '/'
         except KeyError:
-            prefix = gethostname() + '/'  # use hostname if no sender specified
-        print prefix
-        senderDefaults = {}
-        for i in range(0, len(names)):
-            senderDefaults[i] = prefix + names[i]
+            prefix = gethostname() + '/'  # use host name if no sender specified
 
-        defaults = {'writer_sleep_time' : 15,
-                    'max_chunk' : 5000,
-                    'max_time' : 60,
-                    'data_type' : 0x1,
-                    'sender_sleep_time' : 5,
-                    'sender' : senderDefaults,
-                    'bayeosgateway_user' : 'import',
-                    'bayeosgateway_version' : '1.9',
-                    'absolute_time' : True,
-                    'rm' : True,
-                    'sleep_between_children' : 0,
-                    'tmp_dir' : tempfile.gettempdir()}
-        defaults.update(defaults1)
-        options = {}
-
-        for default in defaults.items():
+        options['sender'] = {}
+        for each_name in names:
+            options['sender'][each_name] = prefix + each_name
+        
+        # Set missing options on default values
+        for each_default in DEFAULTS.items():
             try:
-                options1[default[0]]
+                options[each_default[0]]
             except KeyError:
-                print "Option '" + default[0] + "' not set using default: " + str(default[1])
-                options[default[0]] = default[1]
-
-        options.update(options1)
+                print "Option '" + each_default[0] + "' not set using default: " + str(each_default[1])
+                options[each_default[0]] = each_default[1]
 
         self.names = names
         self.options = options
-        self.pid_w = {}
-        self.pid_r = {}
+        
+    def __init_folder(self, name):
+        """Initializes folder to save data in.
+        @param name: will be the folder name
+        """
+        path = self.__get_option('path') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+', '_', name)
+        if not os.path.isdir(path):
+            try:
+                os.mkdir(path, 0700)
+            except OSError as err:
+                exit('OSError: ' + str(err))
+        return path
 
-    def getOption(self, key, default=''):
+    def __get_option(self, key, default=''):
         """Helper function to get an option value.
-        @param key
-        @param default
-        @return Value of the specified option key as a string.
+        @param key: key in options dictionary
+        @param default: default value to return if key is not specified
+        @return value of the given option key or default value
         """
         try:
             self.options[key]
@@ -306,77 +309,64 @@ class BayEOSGatewayClient(object):
             return default
         if isinstance(self.options[key], dict):
             try:
-                self.options[key][self.i]
+                self.options[key][self.name]
             except AttributeError or KeyError:
                 return default
-            return self.options[key][self.i]
+            return self.options[key][self.name]
         return self.options[key]
 
     def run(self):
-        """Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per name."""
-        for i in range(0, len(self.names)):
-            self.i = i
-            self.name = self.names[i]
-            path = self.getOption('tmp_dir') + '/' + re.sub('[-]+|[/]+|[\\\\]+|["]+|[\']+',
-                                                            '_', self.name)
-            self.pid_w[i] = os.fork()
-            if self.pid_w[i] == -1:
-                exit("Could not fork writer process!")
-            elif self.pid_w[i]:  # Parent
-                print "Started writer"
-            else:  # Child
-                self.initWriter()
-                self.writer = BayEOSWriter(path,
-                                           self.getOption('max_chunk'),
-                                           self.getOption('max_time'))
+        """Runs the BayEOSGatewayClient. Forks one BayEOSWrite and one BayEOSSender per device name."""
+        for each_name in self.names:
+            self.name = each_name # will be forked and then overwritten
+            PATH = self.__init_folder(each_name)
+            pid_writer = fork()
+            if pid_writer > 0: # Parent
+                print 'Started writer for ' + each_name + ' with pid ' + str(pid_writer)
+            elif pid_writer == 0:  # Child
+                self.init_writer()
+                self.writer = BayEOSWriter(PATH, self.__get_option('max_chunk'), self.__get_option('max_time')) 
+                self.writer.save_msg('Started writer for ' + each_name)          
                 while True:
-                    data = self.readData()
+                    data = self.read_data()
                     if data:
-                        self.saveData(data)
-                    else:
-                        print "readData failed"
-                    sleep(self.getOption('writer_sleep_time'))
-                exit()
-
-            self.pid_r[i] = os.fork()
-            if self.pid_r[i] == -1:
-                exit("Could not fork sender process!")
-            elif self.pid_r[i]:  # Parent
-                print "Started sender"
-                sleep(self.getOption('sleep_between_children'))
-            else:  # Child
-                sender = BayEOSSender(path,
-                                      self.getOption('sender'),
-                                      self.getOption('bayeosgateway_url'),
-                                      self.getOption('bayeosgateway_password'),
-                                      self.getOption('bayeosgateway_user'),
-                                      self.getOption('absolute_time'),
-                                      self.getOption('rm'),
-                                      self.getOption('bayeosgateway_version'))
-
+                        self.save_data(data)
+                    sleep(self.__get_option('writer_sleep_time'))
+            else:
+                exit("Could not fork writer process!")    
+                
+            pid_sender = fork()
+            if pid_sender > 0: # Parent
+                print 'Started sender for ' + each_name + ' with pid ' + str(pid_writer)
+            elif pid_sender == 0: # Child
+                self.sender = BayEOSSender(PATH,
+                                      self.__get_option('sender'),
+                                      self.__get_option('bayeosgateway_url'),
+                                      self.__get_option('bayeosgateway_password'),
+                                      self.__get_option('bayeosgateway_user'),
+                                      self.__get_option('absolute_time'),
+                                      self.__get_option('remove'))
                 while True:
-                    res = sender.send()
-                    if res > 0:
-                        print 'Successfully sent ' + str(res) + ' frames.\n'
-                    sleep(self.getOption('sender_sleep_time'))
-                exit()
+                    self.sender.send()
+                    sleep(self.__get_option('sender_sleep_time'))
+            else:
+                exit("Could not fork sender process!")    
 
+    @abstractmethod
+    def init_writer(self):
+        """Method called by run(). Can be overwritten by implementation."""
+        return
+    
+    @abstractmethod
+    def read_data(self):
+        """Method called by run(). Must be overwritten by implementation."""
+        exit("No read data method found. Method has to be implemented.")
 
-    def initWriter(self):
+    def save_data(self, *args):
+        """Method called by run(). Can be overwritten by implementation (e.g. to store message frames).
+        @param data: data as a list or tuples to be stored
+        @param origin: if specified Origin Frames are saved
         """
-        Method called by run(). Can be overwritten by implementation.
-        """
-        pass
-
-    def readData(self):
-        """
-        Method called by run(). Must be overwritten by implementation.
-        """
-        exit("No readData() found! Method has to be implemented.\n")
-        return False
-
-    def saveData(self, data, origin=''):
-        """
-        Method called by run(). Can be overwritten by implementation (e.g. to store routed frames).
-        """
-        self.writer.save(data, self.getOption('data_type'), origin=origin)
+        data = args[0]
+        origin = args[1]
+        self.writer.save(data, self.__get_option('value_type'), origin=origin)

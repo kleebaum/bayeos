@@ -4,20 +4,26 @@ from bayeosgatewayclient import BayEOSGatewayClient
 from random import randint
 
 OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',
-           'bayeosgateway_pw' : 'import',
+           'bayeosgateway_password' : 'import',
            'bayeosgateway_user' : 'import',
-           'sender' : 'anja'}
+           'max_chunk' : 100,
+           'writer_sleep_time' : 5,
+           'sender' : 'sender'}
 
 NAMES = ['PythonTestDevice1', 'PythonTestDevice2', 'PythonTestDevice3']
+#NAMES = 'PythonTestDevice1'
 
 class PythonTestDevice(BayEOSGatewayClient):
     """Creates both a writer and sender instance for every NAME. Implements BayEOSGatewayClient."""
-    def readData(self):
-        if self.names[self.i] == 'PythonTestDevice1':
+    def read_data(self):
+        if self.name == 'PythonTestDevice1':
             return (randint(-1, 1), 3, 4)
         else:
-            return (2, 1.0, randint(-1, 1))
-print OPTIONS
+            return (randint(-1, 1), 4, 3)
+        
+    def save_data(self, data=0, origin=''):
+        if self.name == 'PythonTestDevice1':
+            self.writer.save_msg('Overwritten method.')
 
 client = PythonTestDevice(NAMES, OPTIONS)
 
