@@ -8,7 +8,8 @@ writer = BayEOSWriter(PATH, 50)
 writer.save_msg('Writer was started.', origin='Python-Writer-Example')
 
 while True:
-    print 'adding frame\n'
+    #writer.save_msg('Writer was started.', origin='Python-Writer-Example')
+    #print 'adding frame\n'
     #writer.save(values=(1,2,3), origin='Python-Writer-Example')
     
     # Channel Offset, Integer values:
@@ -16,5 +17,7 @@ while True:
     
     # Channel Indices:
     writer.save(values=[[1,2.1], [2,3], [3,20.5]], value_type=0x41, origin='Python-Writer-Example')
-    writer.save_msg("error message", error=True, origin='Python-Writer-Example')
+    
+    # Error Message
+    #writer.save_msg("error message", error=True, origin='Python-Writer-Example')
     sleep(1)

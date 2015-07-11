@@ -4,8 +4,8 @@ from bayeosgatewayclient import BayEOSGatewayClient
 from random import randint
 
 OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',
-           'bayeosgateway_pw' : 'bayeos',
-           'bayeosgateway_user' : 'root',
+           'bayeosgateway_pw' : 'import',
+           'bayeosgateway_user' : 'import',
            'sender' : 'anja'}
 
 NAMES = ['PythonTestDevice1', 'PythonTestDevice2', 'PythonTestDevice3']

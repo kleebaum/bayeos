@@ -295,8 +295,7 @@ class BayEOSGatewayClient(object):
         self.pid_r = {}
 
     def getOption(self, key, default=''):
-        """
-        Helper function to get an option value.
+        """Helper function to get an option value.
         @param key
         @param default
         @return Value of the specified option key as a string.

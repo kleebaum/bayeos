@@ -8,7 +8,7 @@ except ImportError as ierr:
 
 setup(
     name='bayeosgatewayclient',
-    version='0.1',
+    version='0.1.1',
     packages=['bayeosgatewayclient'],
     description='A generic Python package to transfer client data to a BayEOS Gateway.',
     author='Anja Kleebaum',
