@@ -11,7 +11,6 @@ OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway
            'sender' : 'sender'}
 
 NAMES = ['PythonTestDevice1', 'PythonTestDevice2', 'PythonTestDevice3']
-#NAMES = 'PythonTestDevice1'
 
 class PythonTestDevice(BayEOSGatewayClient):
     """Creates both a writer and sender instance for every NAME. Implements BayEOSGatewayClient."""
@@ -24,6 +23,8 @@ class PythonTestDevice(BayEOSGatewayClient):
     def save_data(self, data=0, origin=''):
         if self.name == 'PythonTestDevice1':
             self.writer.save_msg('Overwritten method.')
+        else:
+            self.writer.save(data)
 
 client = PythonTestDevice(NAMES, OPTIONS)
 
