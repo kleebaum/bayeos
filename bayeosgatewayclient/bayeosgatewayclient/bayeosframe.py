@@ -75,12 +75,17 @@ class BayEOSFrame(object):
 
 class DataFrame(BayEOSFrame):
     """Data Frame Factory class."""
-    def create(self, values=(), value_type=0x1, offset=0):
+    def create(self, values=(), value_type=0x41, offset=0):
         """Creates a BayEOS Data Frame.
         @param values: list with [channel index, value] tuples
         @param value_type: defines Offset and Data Type
         @param offset: length of Channel Offset (if Offset Type is 0x0)
         """
+        if type(values) is dict:
+            v = []            
+            for key, value in values.iteritems():
+                v.append((key,value))
+            values = v
         value_type = int(value_type)
         frame = pack('<b', value_type)
         offset_type = (0xf0 & value_type)  # first four bits of the Value Type

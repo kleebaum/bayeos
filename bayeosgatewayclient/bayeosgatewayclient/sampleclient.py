@@ -23,8 +23,8 @@ class PythonTestDevice(BayEOSGatewayClient):
     def save_data(self, data=0, origin=''):
         if self.name == 'PythonTestDevice1':
             self.writer.save_msg('Overwritten method.')
-        else:
-            self.writer.save(data)
+        elif self.name == 'PythonTestDevice2':
+            self.writer.save(data, origin='PythonTestDevice2')
 
 client = PythonTestDevice(NAMES, OPTIONS)
 
