@@ -311,11 +311,11 @@ class TimestampFrame(BayEOSFrame):
         return BayEOSFrame.parse(self), {'timestamp' : unpack('<q', self.frame[1:9])[0],
                                          'nested_frame' : nested_frame}
 
-DATA_TYPES = {0x1 : {'format' : 'f', 'length' : 4},  # float32 4 bytes
-              0x2 : {'format' : 'i', 'length' : 4},  # int32 4 bytes
-              0x3 : {'format' : 'h', 'length' : 2},  # int16 2 bytes
-              0x4 : {'format' : 'b', 'length' : 1},  # int8 1 byte
-              0x5 : {'format' : 'd', 'length' : 8}}  # double 8 bytes
+DATA_TYPES = {0x1 : {'format' : '<f', 'length' : 4},  # float32 4 bytes
+              0x2 : {'format' : '<i', 'length' : 4},  # int32 4 bytes
+              0x3 : {'format' : '<h', 'length' : 2},  # int16 2 bytes
+              0x4 : {'format' : '<b', 'length' : 1},  # int8 1 byte
+              0x5 : {'format' : '<q', 'length' : 8}}  # double 8 bytes
 
 FRAME_TYPES = {0x1: {'name' : 'Data Frame',
                      'class' : DataFrame},

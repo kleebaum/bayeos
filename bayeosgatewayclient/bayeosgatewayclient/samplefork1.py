@@ -6,7 +6,8 @@ from os import fork
 
 PATH = '/tmp/bayeos-device/'
 NAME = 'Python-Fork-Example'
-URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+#URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
 
 pid = fork()
 if pid > 0:

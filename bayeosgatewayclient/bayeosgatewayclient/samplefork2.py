@@ -9,7 +9,8 @@ from os import fork
 
 TEMP = '/tmp/'
 SENDER = 'Sender'
-URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+#URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
 
 NAMES = ['Dev 1', 'Dev 2', 'Dev 3']
 

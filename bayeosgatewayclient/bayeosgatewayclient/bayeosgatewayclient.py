@@ -92,7 +92,6 @@ class BayEOSWriter(object):
         @param error: when true, an Error Message is sent
         @param timestamp: Unix epoch time stamp, if zero system time is used
         """
-
         if error:
             msg_frame = BayEOSFrame.factory(0x5)  # instantiate ErrorMessage Frame
         else:
@@ -224,11 +223,11 @@ class BayEOSSender(object):
             return 1
         except urllib2.HTTPError as err:
             if err.code == 401:
-                exit('Authentication failed.\n')
+                exit('Authentication failed.')
             elif err.code == 404:
-                exit('URL ' + self.url + ' is invalid.\n')
+                exit('URL ' + self.url + ' is invalid.')
             else:
-                exit('Post error: ' + str(err) + '.\n')
+                exit('Post error: ' + str(err) + '.')
         except urllib2.URLError as err:
             exit('URLError: ' + str(err))
         return 0

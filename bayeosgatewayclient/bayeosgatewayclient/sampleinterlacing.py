@@ -5,7 +5,8 @@ from bayeosgatewayclient import BayEOSWriter, BayEOSSender
 
 PATH = '/tmp/bayeos-device/'
 NAME = 'Python-Interlacing-Example'
-URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+#URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
 writer = BayEOSWriter(PATH, max_chunk=100)
 writer.save_msg('Writer was started.')
 sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
