@@ -9,12 +9,13 @@ from time import sleep, time
 from glob import glob
 from bayeosframe import BayEOSFrame
 from abc import abstractmethod
+import sys.stderr.write
 
 DEFAULTS = {'path' : gettempdir(),
             'writer_sleep_time' : 15,
             'max_chunk' : 2500,
             'max_time' : 60,
-            'value_type' : 0x1,
+            'value_type' : 0x41,
             'sender_sleep_time' : 5,
             'bayeosgateway_user' : 'import',
             'absolute_time' : True,
@@ -68,7 +69,7 @@ class BayEOSWriter(object):
         self.current_name = sec + '-' + usec
         self.file = open(self.current_name + '.act', 'wb')
 
-    def save(self, values, value_type=0x1, offset=0, timestamp=0, origin=None):
+    def save(self, values, value_type=0x41, offset=0, timestamp=0, origin=None):
         """Generic frame saving method.
         @param values: list with [channel index, value] tuples or just values (..,..) or [..,..]
         @param value_type: defines Offset and Data Type
@@ -223,13 +224,13 @@ class BayEOSSender(object):
             return 1
         except urllib2.HTTPError as err:
             if err.code == 401:
-                exit('Authentication failed.')
+                sys.stderr.write('Authentication failed.')
             elif err.code == 404:
-                exit('URL ' + self.url + ' is invalid.')
+                sys.stderr.write('URL ' + self.url + ' is invalid.')
             else:
-                exit('Post error: ' + str(err) + '.')
+                sys.stderr.write('Post error: ' + str(err))
         except urllib2.URLError as err:
-            exit('URLError: ' + str(err))
+            sys.stderr.write('URLError: ' + str(err))
         return 0
 
     def run(self, sleep_sec):
