@@ -4,7 +4,7 @@ from time import sleep
 from bayeosgatewayclient import BayEOSWriter
 
 PATH = '/tmp/bayeos-device1/'
-writer = BayEOSWriter(PATH, 50)
+writer = BayEOSWriter(PATH, 95)
 writer.save_msg('Writer was started.', origin='Python-Writer-Example')
  
 while True:

@@ -1,6 +1,6 @@
 """bayeosgatewayclient"""
-import os, string, urllib, urllib2, base64, re
-from os import fork
+import os, string, urllib, urllib2, base64, re, sys
+#from os import fork
 from posix import chdir, rename
 from tempfile import gettempdir
 from struct import pack, unpack
@@ -9,7 +9,7 @@ from time import sleep, time
 from glob import glob
 from bayeosframe import BayEOSFrame
 from abc import abstractmethod
-import sys.stderr.write
+from multiprocessing import Process
 
 DEFAULTS = {'path' : gettempdir(),
             'writer_sleep_time' : 15,
@@ -56,11 +56,12 @@ class BayEOSWriter(object):
         """
         if not timestamp:
             timestamp = time()
-        self.file.write(pack('<d', timestamp) + pack('<h', len(frame)) + frame)
-        if self.file.tell() >= self.max_chunk or time() - self.current_timestamp >= self.max_time:
+        frame_length = len(frame)         
+        if self.file.tell() + frame_length + 10 > self.max_chunk or time() - self.current_timestamp > self.max_time:
             self.file.close()
             rename(self.current_name + '.act', self.current_name + '.rd')
             self.__start_new_file()
+        self.file.write(pack('<d', timestamp) + pack('<h', frame_length) + frame) 
 
     def __start_new_file(self):
         """Opens a new file with ending .act and determines current file name."""
@@ -178,12 +179,11 @@ class BayEOSSender(object):
                 count_frames += 1
                 if self.absolute_time:  # Timestamp Frame
                     # millisecond resolution from 1970-01-01
-                    timestamp_frame = BayEOSFrame.factory(0xc)
-                    timestamp_frame.create(frame, timestamp)
+                    wrapper_frame = BayEOSFrame.factory(0xc)
                 else:  # Delayed Frame
-                    timestamp_frame = BayEOSFrame.factory(0x7)
-                    timestamp_frame.create(frame, timestamp)
-                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestamp_frame.frame)
+                    wrapper_frame = BayEOSFrame.factory(0x7)
+                wrapper_frame.create(frame, timestamp)
+                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(wrapper_frame.frame)
             timestamp = current_file.read(8)
         current_file.close()
         if frames:  # content found for post request
@@ -317,7 +317,54 @@ class BayEOSGatewayClient(object):
                 return default
             return self.options[key][self.name]
         return self.options[key]
+    
+    def __start_writer(self, path):
+        self.init_writer()
+        self.writer = BayEOSWriter(path, self.__get_option('max_chunk'),
+                                    self.__get_option('max_time'))
+        self.writer.save_msg('Started writer for ' + self.name)
+        while True:
+            data = self.read_data()
+            if data:
+                self.save_data(data)
+            sleep(self.__get_option('writer_sleep_time'))
+            
+    def __start_sender(self, path):
+        self.sender = BayEOSSender(path,
+                                   self.__get_option('sender'),
+                                   self.__get_option('bayeosgateway_url'),
+                                   self.__get_option('bayeosgateway_password'),
+                                   self.__get_option('bayeosgateway_user'),
+                                   self.__get_option('absolute_time'),
+                                   self.__get_option('remove'))
+        while True:
+            self.sender.send()
+            sleep(self.__get_option('sender_sleep_time'))
+        
 
+#     def run(self):
+#         """Runs the BayEOSGatewayClient.
+#         Forks one BayEOSWrite and one BayEOSSender per device name.
+#         """
+#         for each_name in self.names:
+#             self.name = each_name  # will be forked and then overwritten
+#             path = self.__init_folder(each_name)
+#             pid_writer = fork()
+#             if pid_writer > 0:  # Parent
+#                 print 'Started writer for ' + each_name + ' with pid ' + str(pid_writer)
+#             elif pid_writer == 0:  # Child
+#                 self.__start_writer(path)
+#             else:
+#                 exit("Could not fork writer process!")
+# 
+#             pid_sender = fork()
+#             if pid_sender > 0:  # Parent
+#                 print 'Started sender for ' + each_name + ' with pid ' + str(pid_writer)
+#             elif pid_sender == 0:  # Child
+#                 self.__start_sender(path)
+#             else:
+#                 exit("Could not fork sender process!")
+                
     def run(self):
         """Runs the BayEOSGatewayClient.
         Forks one BayEOSWrite and one BayEOSSender per device name.
@@ -325,38 +372,11 @@ class BayEOSGatewayClient(object):
         for each_name in self.names:
             self.name = each_name  # will be forked and then overwritten
             path = self.__init_folder(each_name)
-            pid_writer = fork()
-            if pid_writer > 0:  # Parent
-                print 'Started writer for ' + each_name + ' with pid ' + str(pid_writer)
-            elif pid_writer == 0:  # Child
-                self.init_writer()
-                self.writer = BayEOSWriter(path, self.__get_option('max_chunk'),
-                                           self.__get_option('max_time'))
-                self.writer.save_msg('Started writer for ' + each_name)
-                while True:
-                    data = self.read_data()
-                    if data:
-                        self.save_data(data)
-                    sleep(self.__get_option('writer_sleep_time'))
-            else:
-                exit("Could not fork writer process!")
-
-            pid_sender = fork()
-            if pid_sender > 0:  # Parent
-                print 'Started sender for ' + each_name + ' with pid ' + str(pid_writer)
-            elif pid_sender == 0:  # Child
-                self.sender = BayEOSSender(path,
-                                           self.__get_option('sender'),
-                                           self.__get_option('bayeosgateway_url'),
-                                           self.__get_option('bayeosgateway_password'),
-                                           self.__get_option('bayeosgateway_user'),
-                                           self.__get_option('absolute_time'),
-                                           self.__get_option('remove'))
-                while True:
-                    self.sender.send()
-                    sleep(self.__get_option('sender_sleep_time'))
-            else:
-                exit("Could not fork sender process!")
+            process_writer = Process(target=self.__start_writer, args=(path,))
+            process_writer.start()
+            
+            process_sender = Process(target=self.__start_sender, args=(path,))
+            process_sender.start()
 
     @abstractmethod
     def init_writer(self):
