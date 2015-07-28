@@ -1,1 +1,68 @@
-/home/anja/Studium/bachelor/latex/uml/bayeosgatewayclient.tex
+\begin{tikzpicture}
+\tikzumlset{font = \sffamily\footnotesize, fill class=white, fill package=white, fill note=white}
+\begin{umlpackage}{bayeosgatewayclient}
+\umlabstract[]{BayEOSFrame}{
+	\lus init\lus (frame\sus type) : BayEOSFrame\\
+	frame\sus type : int\\
+	frame : String}{
+	\ul{factory(frame\sus type=0x1) : ConcreteFrame}\\
+	\textit{create(*args)}\\
+	\textit{parse() : Dictionary}\\
+	to\sus string() : String\\
+	get\sus name() : String\\
+	get\sus payload() : Dictionary\\
+	\ul{to\sus object(frame) : ConcreteFrame}\\
+	\ul{parse\sus frame(frame) : Dictionary}}
+\umlclass[x=7]{ConcreteFrame}{
+	\ul{frame\sus type : int}}{
+	create(*args)\\
+	parse()}
+\umlnote[x=12, width=4cm]{ConcreteFrame}{Can be: \begin{itemize}
+\item DataFrame
+\item CommandFrame
+\item MessageFrame
+\item \dots
+\end{itemize}}
+\umlclass[y=-5.3]{BayEOSWriter}{
+	path : String \\
+	max\sus chunk : int \\
+	max\sus time : int}{
+	\lus init\lus (path, max\sus chunk=2500, max\sus time=60) : BayEOSWriter\\
+	save(values, value\sus type=0x41, offset=0, timestamp=0, origin=None)\\
+	save\sus msg(message, error=False, timestamp=0, origin=None)\\
+	flush() : void\\
+	\lus save\sus frame(frame, timestamp=0)\\
+	\lus start\sus new\sus file()
+	}
+\umlclass[x=13, y=-5.5]{BayEOSSender}{
+	path : String \\
+	name : String \\
+	url : String \\
+	user : String \\
+	absolute\sus time : boolean\\
+	remove : boolean}{
+	\lus init\lus (path, name, url, password, user='import', absolute\sus time=True, \\\hspace{2cm} remove=True) : BayEOSSender\\
+	send() : int\\
+	run() : void\\
+	\lus send\sus file() : int\\
+	\lus post(post\sus request) : boolean}
+\umlabstract[x=3, y=-10]{BayEOSGatewayClient}{
+	names : List\\
+	options : Dictionary}{
+	\lus init\lus (names, options) : BayEOSGatewayClient\\
+	\lus get\sus option(key, default='') : String\\
+	run() : void\\
+	init\sus writer() : void\\ 
+	save\sus data(*args) : void\\
+	\textit{read\sus  data()} : void}	
+\umlclass[x=12, y=-10]{Client}{}{
+	read\sus data() : void}
+\umlunicompo[geometry=|-, mult1=$1$, attr2=frame|$0 .. ^*$, pos1=0.2, pos2=1.6, anchor1=30, anchor2=-160]{BayEOSWriter}{ConcreteFrame}
+\umlunicompo[geometry=-|, mult1=$1$, attr2=frame|$0 .. ^*$, pos1=0.4, pos2=1.9, anchor1=160, anchor2=-85]{BayEOSSender}{ConcreteFrame}
+%\umlassoc[geometry=-|-, mult1=$0 .. ^*$, mult2=$0 .. ^*$, pos1=0.4, pos2=2.7]{BayEOSWriter}{BayEOSSender}
+\umlunicompo[geometry=-|, mult1=$1$, mult2=$1 .. ^*$, pos1=0.3, pos2=1.8, anchor1=180, anchor2=-140]{BayEOSGatewayClient}{BayEOSWriter}
+\umlunicompo[geometry=|-, mult1=$1$, mult2=$1 .. ^*$, pos1=0.1, pos2=1.6, anchor1=40, anchor2=-180]{BayEOSGatewayClient}{BayEOSSender}
+\umlinherit[]{Client}{BayEOSGatewayClient}
+\umlinherit[]{ConcreteFrame}{BayEOSFrame}
+\end{umlpackage}
+\end{tikzpicture}

@@ -1,1 +1,45 @@
-/home/anja/Studium/bachelor/latex/uml/bayeosframe.tex
+\begin{tikzpicture}
+\tikzumlset{font = \sffamily\footnotesize, fill class=white, fill package=white, fill note=white}
+\umlabstract[x=5]{BayEOSFrame}{
+	frame\sus type : int\\
+	frame : String}{
+	\lus init\lus (frame\sus type) : BayEOSFrame\\
+	\ul{factory(frame\sus type=0x1) : ConcreteFrame}\\
+	\textit{create(*args)}\\
+	\textit{parse() : Dictionary}\\
+	to\sus string() : String\\
+	get\sus name() : String\\
+	get\sus payload() : Dictionary\\
+	\ul{to\sus object(frame) : ConcreteFrame}\\
+	\ul{parse\sus frame(frame) : Dictionary}}
+\umlclass[x=10.35, y=5]{MessageFrame}{\ul{frame\sus type = 0x4 $\vee$ 0x5}}{
+	create(message)\\
+	parse()}
+\umlclass[y=5, x=0.15]{DataFrame}{\ul{frame\sus type = 0x1}}{
+	create(values=(), value\sus type=0x41, offset=0)\\
+	parse()}
+\umlclass[x=6, y=5]{CommandFrame}{\ul{frame\sus type = 0x2 $\vee$ 0x3}}{
+	create(cmd\sus type, cmd)\\
+	parse()}
+\umlclass[x=0, y=-5]{DelayedFrame}{\ul{frame\sus type = 0x7}}{
+	create(nested\sus frame, delay=0)\\
+	parse()}
+\umlclass[x=-1, y=0]{OriginFrame}{\ul{frame\sus type = 0xb}}{
+	create(origin, nested\sus frame)\\
+	parse()}
+\umlclass[x=7, y=-5]{TimestampFrame}{\ul{frame\sus type = 0x9 $\vee$ 0xc}}{
+	create(nested\sus frame, timestamp=0)\\
+	parse()}
+%\umlnote[x=12, width=5cm]{ConcreteFrame}{Can be: \begin{itemize}
+%\item DataFrame
+%\item CommandFrame
+%\item MessageFrame
+%\item \dots
+%\end{itemize}}
+\umlinherit[]{DataFrame}{BayEOSFrame}
+\umlinherit[]{CommandFrame}{BayEOSFrame}
+\umlinherit[]{MessageFrame}{BayEOSFrame}
+\umlinherit[]{OriginFrame}{BayEOSFrame}
+\umlinherit[]{DelayedFrame}{BayEOSFrame}
+\umlinherit[]{TimestampFrame}{BayEOSFrame}
+\end{tikzpicture}
