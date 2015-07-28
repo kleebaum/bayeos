@@ -1,7 +1,7 @@
 """bayeosgatewayclient"""
 import os, string, urllib, urllib2, base64, re, sys
 #from os import fork
-from posix import chdir, rename
+from posix import chdir, rename, mkdir
 from tempfile import gettempdir
 from struct import pack, unpack
 from _socket import gethostname
@@ -38,7 +38,7 @@ class BayEOSWriter(object):
             try:
                 os.mkdir(self.path, 0700)
             except OSError as err:
-                exit('OSError: ' + str(err))
+                exit('OSError: ' + str(err) + ' Could not create dir.')
         chdir(self.path)
         files = glob('*')
         for each_file in files:
@@ -121,7 +121,8 @@ class BayEOSSender(object):
     def __init__(self, path=DEFAULTS['path'], name='', url='', password='',
                  user=DEFAULTS['bayeosgateway_user'],
                  absolute_time=DEFAULTS['absolute_time'],
-                 remove=DEFAULTS['remove']):
+                 remove=DEFAULTS['remove'],
+                 backup_path = ''):
         """Constructor for BayEOSSender instance.
         @param path: path where BayEOSWriter puts files
         @param name: sender name
@@ -135,38 +136,62 @@ class BayEOSSender(object):
         if not password:
             exit('No gateway password was found.')
         self.path = path
+        if not os.path.isdir(self.path):
+            try:
+                os.mkdir(self.path, 0700)
+            except OSError as err:
+                sys.stderr.write('OSError: ' + str(err) + ' Could not create dir.')
         self.name = name
         self.url = url
         self.password = password
         self.user = user
         self.absolute_time = absolute_time
         self.remove = remove
+        self.backup_path = backup_path
+        if backup_path and not os.path.isdir(backup_path):
+            try:
+                os.mkdir(self.backup_path, 0700)
+            except OSError as err:
+                sys.stderr.write('OSError: ' + str(err) + ' Could not create backup dir')              
 
     def send(self):
         """Keeps sending until all files are sent or an error occurs.
-        @return number of post requests (i.e. posted frames) as an integer
+        @return number of posted frames as an integer
         """
         count_frames = 0
-        post = self.__send_file()
-        while post:
-            count_frames += post
-            post = self.__send_file()
+        self.in_backup_path = False
+        count_frames += self.__send_files(self.path)
+        if self.backup_path:
+            self.in_backup_path = True
+            count_frames += self.__send_files(self.backup_path)  
         return count_frames
-
-    def __send_file(self):
-        """Reads one file from queue and tries to send it to the gateway.
-        On success the file is deleted or renamed to *.bak ending.
-        Always the oldest file is used.
-        @return number of post requests as an integer
+    
+    def __send_files(self, path):
+        """Sends all files within one directory.
+        @param path: path in file system
+        @return number of frames in directory
         """
+        count_frames = 0
         try:
-            chdir(self.path)
+            chdir(path)
         except OSError as err:
-            exit('OSError: ' + str(err) + '. Start BayEOSWriter first.')
+            sys.stderr.write('OSError: ' + str(err))
         files = glob('*.rd')
+        if self.in_backup_path:
+            files += glob('*.bak')
         if len(files) == 0:
             return 0
-        current_file = open(files[0], 'rb')  # opens oldest file
+        for each_file in files:
+            count_frames += self.__send_file(each_file)
+        return count_frames
+
+    def __send_file(self, file_name):
+        """Reads one file and tries to send its content to the gateway.
+        On success the file is deleted or renamed to *.bak ending.
+        Always the oldest file is used.
+        @return number of successfully posted frames in one file     
+        """        
+        current_file = open(file_name, 'rb')  # opens oldest file
         post_request = '&sender=' + urllib.quote_plus(self.name)
         frames = ''
         count_frames = 0
@@ -188,24 +213,29 @@ class BayEOSSender(object):
             timestamp = current_file.read(8)
         current_file.close()
         if frames:  # content found for post request
-            res = self.__post(post_request + frames)
-            if res == 1:
+            if self.in_backup_path or not self.backup_path:
+                new_file_name = file_name.replace('.rd', '.bak')
+            else:
+                new_file_name = self.backup_path + '/' + file_name
+                                
+            post_result = self.__post(post_request + frames)
+            if post_result == 1: # successfuly posted
                 if self.remove:
                     try:
-                        os.remove(files[0])
+                        os.remove(file_name)
                     except OSError as err:
-                        exit('OSError: ' + str(err))
+                        sys.stderr.write('OSError: ' + str(err))
                 else:
-                    rename(files[0], files[0].replace('.rd', '.bak'))
-            elif res == 0:
-                rename(files[0], files[0].replace('.rd', '.bak'))
-                exit('Error posting. File will be kept as ' + str(files[0].replace('.rd', '.bak')))
-            return count_frames
-        else:  # empty file
-            if os.stat(files[0]).st_size:
-                rename(files[0], files[0].replace('.rd', '.bak'))
+                    rename(file_name, new_file_name)
+                return count_frames
+            elif post_result == 0: # post failure                
+                rename(file_name, new_file_name)
+                sys.stderr.write('Error posting. File will be kept as ' + new_file_name + '\n')
+        else:  # empty or broken file
+            if os.stat(file_name).st_size:
+                rename(file_name, new_file_name)
             else:
-                os.remove(files[0])
+                os.remove(file_name)
         return 0
 
     def __post(self, post_request):
@@ -225,13 +255,13 @@ class BayEOSSender(object):
             return 1
         except urllib2.HTTPError as err:
             if err.code == 401:
-                sys.stderr.write('Authentication failed.')
+                sys.stderr.write('Authentication failed.\n')
             elif err.code == 404:
-                sys.stderr.write('URL ' + self.url + ' is invalid.')
+                sys.stderr.write('URL ' + self.url + ' is invalid.\n')
             else:
-                sys.stderr.write('Post error: ' + str(err))
+                sys.stderr.write('Post error: ' + str(err) + '\n')
         except urllib2.URLError as err:
-            sys.stderr.write('URLError: ' + str(err))
+            sys.stderr.write('URLError: ' + str(err) + '\n')
         return 0
 
     def run(self, sleep_sec):
@@ -373,12 +403,10 @@ class BayEOSGatewayClient(object):
         for each_name in self.names:
             self.name = each_name  # will be forked and then overwritten
             path = self.__init_folder(each_name)
-            process_writer = Process(target=self.__start_writer, args=(path,))
-            process_writer.start()
+            Process(target=self.__start_writer, args=(path,)).start()
             print 'Started writer for ' + each_name
             
-            process_sender = Process(target=self.__start_sender, args=(path,))
-            process_sender.start()
+            Process(target=self.__start_sender, args=(path,)).start()
             print 'Started sender for ' + each_name
 
     @abstractmethod
