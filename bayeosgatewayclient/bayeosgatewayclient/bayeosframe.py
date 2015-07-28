@@ -82,10 +82,10 @@ class DataFrame(BayEOSFrame):
         @param offset: length of Channel Offset (if Offset Type is 0x0)
         """
         if type(values) is dict:
-            v = []            
+            val_list = []            
             for key, value in values.iteritems():
-                v.append((key,value))
-            values = v
+                val_list.append((key,value))
+            values = val_list
         value_type = int(value_type)
         frame = pack('<b', value_type)
         offset_type = (0xf0 & value_type)  # first four bits of the Value Type
@@ -105,7 +105,11 @@ class DataFrame(BayEOSFrame):
                     frame += pack('<b', key)
                 frame += pack(val_format, each_value)
         except TypeError:
+            key = 1
             for each_value in values:  # simple Data Frame, Offset Type is 0x2
+                if offset_type == 0x40:  # Data Frame with channel indices
+                    frame += pack('<b', key)
+                    key += 1
                 frame += pack(val_format, each_value)
         self.frame += frame
 

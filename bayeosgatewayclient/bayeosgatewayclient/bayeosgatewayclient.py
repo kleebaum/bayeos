@@ -56,12 +56,12 @@ class BayEOSWriter(object):
         """
         if not timestamp:
             timestamp = time()
-        frame_length = len(frame)         
+        frame_length = len(frame)       
+        self.file.write(pack('<d', timestamp) + pack('<h', len(frame)) + frame)   
         if self.file.tell() + frame_length + 10 > self.max_chunk or time() - self.current_timestamp > self.max_time:
             self.file.close()
             rename(self.current_name + '.act', self.current_name + '.rd')
-            self.__start_new_file()
-        self.file.write(pack('<d', timestamp) + pack('<h', frame_length) + frame) 
+            self.__start_new_file()        
 
     def __start_new_file(self):
         """Opens a new file with ending .act and determines current file name."""
@@ -179,11 +179,12 @@ class BayEOSSender(object):
                 count_frames += 1
                 if self.absolute_time:  # Timestamp Frame
                     # millisecond resolution from 1970-01-01
-                    wrapper_frame = BayEOSFrame.factory(0xc)
+                    timestamp_frame = BayEOSFrame.factory(0xc)
+                    timestamp_frame.create(frame, timestamp)
                 else:  # Delayed Frame
-                    wrapper_frame = BayEOSFrame.factory(0x7)
-                wrapper_frame.create(frame, timestamp)
-                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(wrapper_frame.frame)
+                    timestamp_frame = BayEOSFrame.factory(0x7)
+                    timestamp_frame.create(frame, timestamp)                
+                frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(timestamp_frame.frame)
             timestamp = current_file.read(8)
         current_file.close()
         if frames:  # content found for post request
@@ -374,9 +375,11 @@ class BayEOSGatewayClient(object):
             path = self.__init_folder(each_name)
             process_writer = Process(target=self.__start_writer, args=(path,))
             process_writer.start()
+            print 'Started writer for ' + each_name
             
             process_sender = Process(target=self.__start_sender, args=(path,))
             process_sender.start()
+            print 'Started sender for ' + each_name
 
     @abstractmethod
     def init_writer(self):

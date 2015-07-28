@@ -7,7 +7,7 @@ PATH = '/tmp/bayeos-device1/'
 NAME = 'Python-Test-Device'
 URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 #URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
-sender = BayEOSSender(PATH, NAME, URL, 'import', 'import', absolute_time=False)
+sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
 
 sender.run(sleep_sec=5)
 

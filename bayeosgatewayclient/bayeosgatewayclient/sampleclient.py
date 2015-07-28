@@ -6,7 +6,7 @@ from random import randint
 OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat',
            'bayeosgateway_password' : 'import',
            'bayeosgateway_user' : 'import',
-           'max_chunk' : 100,
+           'max_chunk' : 300,
            'writer_sleep_time' : 5,
            'sender' : 'sender'}
 
@@ -24,7 +24,7 @@ class PythonTestDevice(BayEOSGatewayClient):
         if self.name == 'PythonTestDevice1':
             self.writer.save_msg('Overwritten method.')
         elif self.name == 'PythonTestDevice2':
-            self.writer.save(data, origin='PythonTestDevice2')
+            self.writer.save(data)
 
 client = PythonTestDevice(NAMES, OPTIONS)
 
