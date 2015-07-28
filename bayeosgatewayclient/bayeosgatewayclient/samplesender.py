@@ -4,10 +4,11 @@
 from bayeosgatewayclient import BayEOSSender
 
 PATH = '/tmp/bayeos-device1/'
+BACKUP_PATH = '/tmp/backup_path/'
 NAME = 'Python-Test-Device'
 URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 #URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
-sender = BayEOSSender(PATH, NAME, URL, 'import', 'import', backup_path='/tmp/backup_path/')
+sender = BayEOSSender(PATH, NAME, URL, 'import', 'import', backup_path = BACKUP_PATH)
 
 sender.run()
 

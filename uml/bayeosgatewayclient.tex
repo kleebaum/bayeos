@@ -58,7 +58,7 @@
 \umlclass[x=12, y=-10]{Client}{}{
 	read\sus data() : void}
 \umlunicompo[geometry=|-, mult1=$1$, attr2=frame|$0 .. ^*$, pos1=0.2, pos2=1.6, anchor1=30, anchor2=-160]{BayEOSWriter}{ConcreteFrame}
-\umlunicompo[geometry=-|, mult1=$1$, attr2=frame|$0 .. ^*$, pos1=0.4, pos2=1.9, anchor1=160, anchor2=-85]{BayEOSSender}{ConcreteFrame}
+\umlunicompo[geometry=-|, mult1=$1$, attr2=wrapper\_frame|$0 .. ^*$, pos1=0.4, pos2=1.9, anchor1=160, anchor2=-85]{BayEOSSender}{ConcreteFrame}
 %\umlassoc[geometry=-|-, mult1=$0 .. ^*$, mult2=$0 .. ^*$, pos1=0.4, pos2=2.7]{BayEOSWriter}{BayEOSSender}
 \umlunicompo[geometry=-|, mult1=$1$, mult2=$1 .. ^*$, pos1=0.3, pos2=1.8, anchor1=180, anchor2=-140]{BayEOSGatewayClient}{BayEOSWriter}
 \umlunicompo[geometry=|-, mult1=$1$, mult2=$1 .. ^*$, pos1=0.1, pos2=1.6, anchor1=40, anchor2=-180]{BayEOSGatewayClient}{BayEOSSender}
