@@ -13,6 +13,7 @@ from multiprocessing import Process
 
 DEFAULTS = {'path' : gettempdir(),
             'writer_sleep_time' : 15,
+            'sender_sleep_time' : 5,
             'max_chunk' : 2500,
             'max_time' : 60,
             'value_type' : 0x41,
@@ -264,7 +265,7 @@ class BayEOSSender(object):
             sys.stderr.write('URLError: ' + str(err) + '\n')
         return 0
 
-    def run(self, sleep_sec):
+    def run(self, sleep_sec = DEFAULTS['sender_sleep_time']):
         """Tries to send frames within a certain interval.
         @param sleep_sec: specifies the sleep time
         """

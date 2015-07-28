@@ -9,7 +9,7 @@ URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 #URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
 sender = BayEOSSender(PATH, NAME, URL, 'import', 'import', backup_path='/tmp/backup_path/')
 
-sender.run(sleep_sec=5)
+sender.run()
 
 # while True:
 #     res = sender.send()
