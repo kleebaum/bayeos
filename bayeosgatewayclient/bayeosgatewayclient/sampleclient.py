@@ -8,7 +8,8 @@ OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway
            'bayeosgateway_user' : 'import',
            'max_chunk' : 300,
            'writer_sleep_time' : 5,
-           'sender' : 'sender'}
+           'sender' : 'sender',
+           'backup_path' : '/tmp/backup_client/'}
 
 NAMES = ['PythonTestDevice1', 'PythonTestDevice2', 'PythonTestDevice3']
 

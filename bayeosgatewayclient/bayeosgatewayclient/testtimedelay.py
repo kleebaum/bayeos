@@ -5,7 +5,7 @@ from bayeosgatewayclient import BayEOSWriter, BayEOSSender
 from thread import start_new_thread
 
 PATH = '/tmp/bayeos-device2/'
-URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
 writer = BayEOSWriter(PATH, 50)
 writer.save_msg('Writer was started.')
 

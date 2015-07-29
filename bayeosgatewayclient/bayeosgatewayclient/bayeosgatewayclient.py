@@ -22,7 +22,8 @@ DEFAULTS = {'path' : gettempdir(),
             'bayeosgateway_user' : 'import',
             'absolute_time' : True,
             'remove' : True,
-            'sleep_between_children' : 0}
+            'sleep_between_children' : 0,
+            'backup_path' : None}
 
 class BayEOSWriter(object):
     """Writes BayEOSFrames to file."""
@@ -58,12 +59,16 @@ class BayEOSWriter(object):
         """
         if not timestamp:
             timestamp = time()
-        frame_length = len(frame)
+        frame_length = len(frame)        
         if self.file.tell() + frame_length + 10 > self.max_chunk or time() - self.current_timestamp > self.max_time:
             self.file.close()
-            rename(self.current_name + '.act', self.current_name + '.rd')
-            self.__start_new_file()  
-        self.file.write(pack('<d', timestamp) + pack('<h', frame_length) + frame)          
+            try:
+                chdir(self.path)
+                rename(self.current_name + '.act', self.current_name + '.rd')
+            except OSError as err:
+                sys.stderr.write(str(err) + '. Could not find file: ' + self.current_name + '.act')
+            self.__start_new_file() 
+        self.file.write(pack('<d', timestamp) + pack('<h', frame_length) + frame)                
 
     def __start_new_file(self):
         """Opens a new file with ending .act and determines current file name."""
@@ -178,19 +183,21 @@ class BayEOSSender(object):
             chdir(path)
         except OSError as err:
             sys.stderr.write('OSError: ' + str(err))
+            return 0
         files = glob('*.rd')
         if len(files) == 0:
             return 0
         for each_file in files:
-            count_frames += self.__send_file(each_file)
+            count_frames += self.__send_file(each_file, path)
         return count_frames
 
-    def __send_file(self, file_name):
+    def __send_file(self, file_name, path):
         """Reads one file and tries to send its content to the gateway.
         On success the file is deleted or renamed to *.bak ending.
         Always the oldest file is used.
         @return number of successfully posted frames in one file     
-        """        
+        """
+        chdir(path)     
         current_file = open(file_name, 'rb')  # opens oldest file
         post_request = '&sender=' + urllib.quote_plus(self.name)
         frames = ''
@@ -228,7 +235,7 @@ class BayEOSSender(object):
                     except OSError as err:
                         sys.stderr.write('OSError: ' + str(err))
                 else:
-                    rename(file_name, new_file_name)
+                    rename(file_name, new_file_name.replace('.rd', '.bak'))
                 return count_frames
             elif post_result == 0: # post failure                
                 rename(file_name, new_file_name)
@@ -388,7 +395,8 @@ class BayEOSGatewayClient(object):
                                        self.__get_option('bayeosgateway_password'),
                                        self.__get_option('bayeosgateway_user'),
                                        self.__get_option('absolute_time'),
-                                       self.__get_option('remove'))
+                                       self.__get_option('remove'),
+                                       self.__get_option('backup_path'))
             print 'Started writer and sender interlaced for ' + self.name + ' with pid ' + str(os.getpid())
             while True:
                 data = self.read_data()

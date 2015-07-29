@@ -28,11 +28,11 @@
 	max\sus chunk : int \\
 	max\sus time : int}{
 	\lus init\lus (path, max\sus chunk=2500, max\sus time=60) : BayEOSWriter\\
-	save(values, value\sus type=0x41, offset=0, timestamp=0, origin=None)\\
-	save\sus msg(message, error=False, timestamp=0, origin=None)\\
+	save(values, value\sus type=0x41, offset=0, timestamp=0, origin=None) : void\\
+	save\sus msg(message, error=False, timestamp=0, origin=None) : void\\
 	flush() : void\\
-	\lus save\sus frame(frame, timestamp=0)\\
-	\lus start\sus new\sus file()
+	\lus save\sus frame(frame, timestamp=0) : void\\
+	\lus start\sus new\sus file() : void
 	}
 \umlclass[x=13, y=-5.5]{BayEOSSender}{
 	path : String \\
@@ -40,10 +40,11 @@
 	url : String \\
 	user : String \\
 	absolute\sus time : boolean\\
-	remove : boolean}{
-	\lus init\lus (path, name, url, password, user='import', absolute\sus time=True, \\\hspace{2cm} remove=True) : BayEOSSender\\
+	remove : boolean\\
+	backup\sus path : String}{
+	\lus init\lus (path, name, url, password, user='import', absolute\sus time=True, \\\hspace{2cm} remove=True, backup\sus path=None) : BayEOSSender\\
 	send() : int\\
-	run() : void\\
+	run(sleep\sus sec) : void\\
 	\lus send\sus file() : int\\
 	\lus post(post\sus request) : boolean}
 \umlabstract[x=3, y=-10]{BayEOSGatewayClient}{
@@ -51,7 +52,7 @@
 	options : Dictionary}{
 	\lus init\lus (names, options) : BayEOSGatewayClient\\
 	\lus get\sus option(key, default='') : String\\
-	run() : void\\
+	run(pair=True, thread=True, interlaced=False) : void\\
 	init\sus writer() : void\\ 
 	save\sus data(*args) : void\\
 	\textit{read\sus  data()} : void}	
@@ -61,7 +62,7 @@
 \umlunicompo[geometry=-|, mult1=$1$, attr2=wrapper\_frame|$0 .. ^*$, pos1=0.4, pos2=1.9, anchor1=160, anchor2=-85]{BayEOSSender}{ConcreteFrame}
 %\umlassoc[geometry=-|-, mult1=$0 .. ^*$, mult2=$0 .. ^*$, pos1=0.4, pos2=2.7]{BayEOSWriter}{BayEOSSender}
 \umlunicompo[geometry=-|, mult1=$1$, mult2=$1 .. ^*$, pos1=0.3, pos2=1.8, anchor1=180, anchor2=-140]{BayEOSGatewayClient}{BayEOSWriter}
-\umlunicompo[geometry=|-, mult1=$1$, mult2=$1 .. ^*$, pos1=0.1, pos2=1.6, anchor1=40, anchor2=-180]{BayEOSGatewayClient}{BayEOSSender}
+\umlunicompo[geometry=|-, mult1=$1$, mult2=$1 .. ^*$, pos1=0.1, pos2=1.6, anchor1=35, anchor2=-180]{BayEOSGatewayClient}{BayEOSSender}
 \umlinherit[]{Client}{BayEOSGatewayClient}
 \umlinherit[]{ConcreteFrame}{BayEOSFrame}
 \end{umlpackage}
