@@ -9,8 +9,9 @@ from glob import glob
 from bayeosframe import BayEOSFrame
 from abc import abstractmethod
 from multiprocessing import Process
-from thread import start_new_thread
+#from thread import start_new_thread
 from threading import Thread
+#from Crypto.Util import Counter
 
 DEFAULTS = {'path' : gettempdir(),
             'writer_sleep_time' : 5,
@@ -19,6 +20,7 @@ DEFAULTS = {'path' : gettempdir(),
             'max_time' : 60,
             'value_type' : 0x41,
             'sender_sleep_time' : 5,
+            'bayeosgateway_pw' : 'import',
             'bayeosgateway_user' : 'import',
             'absolute_time' : True,
             'remove' : True,
@@ -125,11 +127,12 @@ class BayEOSWriter(object):
 
 class BayEOSSender(object):
     """Sends content of BayEOS writer files to Gateway."""
-    def __init__(self, path=DEFAULTS['path'], name='', url='', password='',
+    def __init__(self, path=DEFAULTS['path'], name='', url='', 
+                 password=DEFAULTS['bayeosgateway_pw'],
                  user=DEFAULTS['bayeosgateway_user'],
                  absolute_time=DEFAULTS['absolute_time'],
                  remove=DEFAULTS['remove'],
-                 backup_path = ''):
+                 backup_path = DEFAULTS['backup_path']):
         """Constructor for BayEOSSender instance.
         @param path: path where BayEOSWriter puts files
         @param name: sender name
@@ -143,11 +146,6 @@ class BayEOSSender(object):
         if not password:
             exit('No gateway password was found.')
         self.path = path
-        if not os.path.isdir(self.path):
-            try:
-                os.mkdir(self.path, 0700)
-            except OSError as err:
-                sys.stderr.write('OSError: ' + str(err) + ' Could not create dir.')
         self.name = name
         self.url = url
         self.password = password
@@ -156,20 +154,15 @@ class BayEOSSender(object):
         self.remove = remove
         self.backup_path = backup_path
         if backup_path and not os.path.isdir(backup_path):
-            try:
-                os.mkdir(self.backup_path, 0700)
-            except OSError as err:
-                sys.stderr.write('OSError: ' + str(err) + ' Could not create backup dir')              
+            os.mkdir(self.backup_path, 0700)
 
     def send(self):
         """Keeps sending until all files are sent or an error occurs.
         @return number of posted frames as an integer
         """
         count_frames = 0
-        self.in_backup_path = False
         count_frames += self.__send_files(self.path)
         if self.backup_path:
-            self.in_backup_path = True
             count_frames += self.__send_files(self.backup_path)  
         return count_frames
     
@@ -178,17 +171,36 @@ class BayEOSSender(object):
         @param path: path in file system
         @return number of frames in directory
         """
-        count_frames = 0
         try:
             chdir(path)
         except OSError as err:
             sys.stderr.write('OSError: ' + str(err))
             return 0
+        
         files = glob('*.rd')
         if len(files) == 0:
             return 0
-        for each_file in files:
-            count_frames += self.__send_file(each_file, path)
+        
+        count_frames = 0
+        i=0
+        while i<len(files):
+            count=self.__send_file(files[i], path)
+            if(count):
+                i+=1
+                count_frames +=count
+            else:
+                break
+
+        # on post error we did not run to the end
+        # move files to backup_path
+        if self.backup_path and path!=self.backup_path:
+            while i<len(files):
+                try:
+                    rename(files[i],self.backup_path + '/' + files[i])
+                except OSError as err:
+                    sys.stderr.write('OSError: ' + str(err))
+                i+=1
+        
         return count_frames
 
     def __send_file(self, file_name, path):
@@ -219,30 +231,24 @@ class BayEOSSender(object):
                 frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(wrapper_frame.frame)
             timestamp = current_file.read(8)
         current_file.close()
+        
+        backup_file_name = file_name.replace('.rd', '.bak')
+        if self.backup_path:
+            backup_file_name = self.backup_path + '/' + backup_file_name
+
         if frames:  # content found for post request
-            if not self.backup_path:
-                new_file_name = file_name.replace('.rd', '.bak')
-            elif not self.in_backup_path:
-                new_file_name = self.backup_path + '/' + file_name
-            else:
-                new_file_name = file_name
                                 
             post_result = self.__post(post_request + frames)
             if post_result == 1: # successfuly posted
                 if self.remove:
-                    try:
-                        os.remove(file_name)
-                    except OSError as err:
-                        sys.stderr.write('OSError: ' + str(err))
+                    os.remove(file_name)
                 else:
-                    rename(file_name, new_file_name.replace('.rd', '.bak'))
+                    rename(file_name, backup_file_name)
                 return count_frames
-            elif post_result == 0: # post failure                
-                rename(file_name, new_file_name)
-                sys.stderr.write('Error posting. File will be kept as ' + new_file_name + '\n')
+            return 0 # post failure
         else:  # empty or broken file
             if os.stat(file_name).st_size:
-                rename(file_name, new_file_name)
+                rename(file_name, backup_file_name)
             else:
                 os.remove(file_name)
         return 0

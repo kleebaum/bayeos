@@ -115,8 +115,8 @@ try:
         GPIO.output(DATA,1);     # Data auf 1
         enable()                 # Data auf Adresse uebenehmen
         
-        writer.save(measure(3), origin="RaspberryPi Kammer Nr. " + str(adr))
-        
+        writer.save(measure(seconds=3), origin="RaspberryPi Kammer Nr. " + str(adr))
+        writer.flush()
         #writer.save_msg(message="Test", origin="RaspberryPi Kammer Nr. " + str(adr))
         print "adr: %d - %d" % (adr,1)
         #time.sleep(3)          # 60 Sekunden warten, 240 Sekunden Messen

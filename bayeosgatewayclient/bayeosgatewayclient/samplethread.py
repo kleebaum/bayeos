@@ -5,16 +5,15 @@ from bayeosgatewayclient import BayEOSWriter, BayEOSSender
 from thread import start_new_thread
 
 PATH = '/tmp/bayeos-device/'
-BACKUP_PATH = '/tmp/backup/'
-NAME = 'Python-Thread-Example'
+NAME = 'Python-Thread-Example2'
 URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
-writer = BayEOSWriter(PATH, max_chunk=99)
+writer = BayEOSWriter(PATH,max_time=10)
 writer.save_msg('Writer was started.')
-sender = BayEOSSender(PATH, NAME, URL, 'import', 'import', backup_path=BACKUP_PATH)
+sender = BayEOSSender(PATH, NAME, URL)
 
 start_new_thread(sender.run, (5,))
 
 while True:
-    print 'adding frame\n'
-    writer.save(values=[2.1, 3, 20.5], value_type=0x02, offset=2)
-    sleep(1)
+    print 'adding frame'
+    writer.save([2.1, 3, 20.5])
+    sleep(5)
