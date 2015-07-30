@@ -43,7 +43,7 @@ class GPIO(object):
         print "adr: %d - %d" % (addr, 1)
         
     def reset(self):
-        GPIO.output(self.data_pin,0);     # Spuelvorgang beenden
+        RPi.GPIO.output(self.data_pin,0);     # Spuelvorgang beenden
         self.enable()                 # Data auf Adresse uebenehmen
         print "adr: %d - %d" % (0,0)
 
