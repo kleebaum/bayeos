@@ -8,7 +8,7 @@ class GPIO(object):
         self.en_pin = en_pin;  # enable pin
         self.data_pin = data_pin;  # data pin
 
-        RPi.GPIO.setmode(GPIO.BOARD)
+        RPi.GPIO.setmode(RPi.GPIO.BOARD)
         try:
             # ADR Output setzen
             for pin in self.addr_pins:

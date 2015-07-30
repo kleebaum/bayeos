@@ -14,15 +14,13 @@ Do the following steps to install the package via the setup.py script:
 
 ### Linux Binary
 #### Debian
-- Add the following repositories to /etc/apt/sources.list ```deb http://www.bayceer.uni-bayreuth.de/edv/debian wheezy/```
-- run ```apt-get update```
-- install the Debian gateway client package ```apt-get install python-bayeosgatewayclient```
+- add the following repositories to /etc/apt/sources.list ```deb http://www.bayceer.uni-bayreuth.de/repos/apt/debian wheezy main```
+- install key ```wget -O - http://www.bayceer.uni-bayreuth.de/repos/apt/conf/bayceer_repo.gpg.key | apt-key add -```
+- ```apt-get update```
+- ```apt-get install python-bayeosgatewayclient```
 
 Alternatively:
 - run ```dpkg -i python-bayeosgatewayclient_0.1-1_all.deb``` as root
-
-### Arch Linux
-coming soon
 
 ## Example usage
 - import the module ```import bayeosgatewayclient```

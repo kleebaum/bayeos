@@ -57,15 +57,14 @@ def measure(self, seconds=10):
 
 start_new_thread(sender.run, (5,))
 
-addr = 1  # address 0 is reserved for flushing with air
 
 while True:
-    for addr in range(0, 15):
-        gpio.set_addr(0)    # set flushing address
-        sleep(0.6)          # flush for 60 seconds
-        gpio.reset()        # stop flushing
+    for addr in range(0, 15):   # address 0 is reserved for flushing with air
+        gpio.set_addr(0)        # set flushing address
+        sleep(0.6)              # flush for 60 seconds
+        gpio.reset()            # stop flushing
 
-        gpio.set_addr(addr) # start measuring wait 60 seconds, 240 measure
+        gpio.set_addr(addr)     # start measuring wait 60 seconds, 240 measure
         writer.save(measure(seconds=3), origin="RaspberryPi Kammer Nr. " + str(addr))
         writer.flush()
         gpio.reset()

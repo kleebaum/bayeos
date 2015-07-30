@@ -8,7 +8,7 @@ except ImportError as ierr:
 
 setup(
     name='bayeosraspberrypi',
-    version='0.2',
+    version='0.0.3',
     packages=['bayeosraspberrypi'],
     install_requires=['bayeosgatewayclient', 'smbus'],
     data_files=[('config',['config/bayeosraspberrypi.ini'])],
