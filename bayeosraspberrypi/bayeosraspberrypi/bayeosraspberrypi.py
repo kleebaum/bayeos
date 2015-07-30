@@ -1,11 +1,16 @@
+"""Python script to measure temperature, humidity and CO2 concentration with a Raspberry Pi.
+A SHT21 sensor and a MCP3424 analog digital converter are connected to gpio pins, i.e. to the I2C bus.
+One BayEOSWriter and BayEOSSender objects are instantiated to transfer data to the BayEOSGateway.
+The sender runs in a separate thread. Origin frames are sent to distinguish CO2 chambers."""
+import sys, numpy  # apt-get install python-numpy
+from scipy import stats  # apt-get install python-scipy
+from thread import start_new_thread
+
 from bayeosgatewayclient import BayEOSWriter, BayEOSSender
 from time import sleep
 from i2c import I2C
 from sht21 import SHT21
 from mcp3424 import MCP3424
-import sys, numpy  # apt-get install python-numpy
-from scipy import stats  # apt-get install python-scipy
-from thread import start_new_thread
 from gpio import GPIO
 
 # gpio pins
@@ -22,7 +27,7 @@ URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 writer = BayEOSWriter(PATH)
 sender = BayEOSSender(PATH, NAME, URL)
 
-# initialize GPIO Boardon Raspberry Pi
+# initialize GPIO Board on Raspberry Pi
 gpio = GPIO(ADDR_PINS, EN_PIN, DATA_PIN)
 
 # initialize I2C Bus with sensors
@@ -34,7 +39,7 @@ except IOError as err:
     sys.stderr.write('I2C Connection Error: ' + str(err) + '. This must be run as root. Did you use the right device number?')
 
 # measurement method
-def measure(self, seconds=10):
+def measure(seconds=10):
     measured_seconds = []
     temp = []
     hum = []
@@ -55,18 +60,20 @@ def measure(self, seconds=10):
     # print "Slope: " + str(slope)
     return [mean_temp, var_temp, mean_hum, var_hum, slope, intercept]
 
-start_new_thread(sender.run, (5,))
+start_new_thread(sender.run, ())
 
-
-while True:
-    for addr in range(0, 15):   # address 0 is reserved for flushing with air
-        gpio.set_addr(0)        # set flushing address
-        sleep(0.6)              # flush for 60 seconds
-        gpio.reset()            # stop flushing
-
-        gpio.set_addr(addr)     # start measuring wait 60 seconds, 240 measure
-        writer.save(measure(seconds=3), origin="RaspberryPi Kammer Nr. " + str(addr))
-        writer.flush()
-        gpio.reset()
-
-gpio.cleanup()
+try:
+    while True:
+        for addr in range(1, 15):   # address 0 is reserved for flushing with air
+            gpio.set_addr(0)        # set flushing address
+            sleep(0.6)              # flush for 60 seconds
+            gpio.reset()            # stop flushing
+    
+            gpio.set_addr(addr)     # start measuring wait 60 seconds, 240 measure
+            writer.save(measure(3), origin="RaspberryPi Kammer Nr. " + str(addr))
+            writer.flush()          # close the file in order to "feed" sender
+            gpio.reset()
+except KeyboardInterrupt as err:
+    print 'Stopped measurement loop.'
+finally:
+    gpio.cleanup()
