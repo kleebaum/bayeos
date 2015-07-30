@@ -8,12 +8,12 @@ except ImportError:
 import re
 
 """
-I2C Class is inspired and adapted by 
+I2C Class is inspired and adapted by
 https://github.com/abelectronicsuk/ABElectronics_Python_Libraries/
 """
 
-class I2C:
-    
+class I2C(object):
+
     def get_smbus(self):
         """ Detects i2C port number and assign to i2c_bus. """
         i2c_bus = 0
@@ -27,9 +27,9 @@ class I2C:
                     else:
                         i2c_bus = 1
                     break
-        try:        
+        try:
             return smbus.SMBus(i2c_bus)
         except IOError:
                 print ("Could not open the i2c bus.")
                 print ("Please check that i2c is enabled and python-smbus and i2c-tools are installed.")
-                print ("Visit https://www.abelectronics.co.uk/i2c-raspbian-wheezy/info.aspx for more information.")    
+                print ("Visit https://www.abelectronics.co.uk/i2c-raspbian-wheezy/info.aspx for more information.")

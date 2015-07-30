@@ -9,9 +9,7 @@ from glob import glob
 from bayeosframe import BayEOSFrame
 from abc import abstractmethod
 from multiprocessing import Process
-#from thread import start_new_thread
 from threading import Thread
-#from Crypto.Util import Counter
 
 DEFAULTS = {'path' : gettempdir(),
             'writer_sleep_time' : 5,
@@ -61,7 +59,7 @@ class BayEOSWriter(object):
         """
         if not timestamp:
             timestamp = time()
-        frame_length = len(frame)        
+        frame_length = len(frame)
         if self.file.tell() + frame_length + 10 > self.max_chunk or time() - self.current_timestamp > self.max_time:
             self.file.close()
             try:
@@ -69,8 +67,8 @@ class BayEOSWriter(object):
                 rename(self.current_name + '.act', self.current_name + '.rd')
             except OSError as err:
                 sys.stderr.write(str(err) + '. Could not find file: ' + self.current_name + '.act')
-            self.__start_new_file() 
-        self.file.write(pack('<d', timestamp) + pack('<h', frame_length) + frame)                
+            self.__start_new_file()
+        self.file.write(pack('<d', timestamp) + pack('<h', frame_length) + frame)
 
     def __start_new_file(self):
         """Opens a new file with ending .act and determines current file name."""
@@ -127,12 +125,12 @@ class BayEOSWriter(object):
 
 class BayEOSSender(object):
     """Sends content of BayEOS writer files to Gateway."""
-    def __init__(self, path=DEFAULTS['path'], name='', url='', 
+    def __init__(self, path=DEFAULTS['path'], name='', url='',
                  password=DEFAULTS['bayeosgateway_pw'],
                  user=DEFAULTS['bayeosgateway_user'],
                  absolute_time=DEFAULTS['absolute_time'],
                  remove=DEFAULTS['remove'],
-                 backup_path = DEFAULTS['backup_path']):
+                 backup_path=DEFAULTS['backup_path']):
         """Constructor for BayEOSSender instance.
         @param path: path where BayEOSWriter puts files
         @param name: sender name
@@ -163,9 +161,9 @@ class BayEOSSender(object):
         count_frames = 0
         count_frames += self.__send_files(self.path)
         if self.backup_path:
-            count_frames += self.__send_files(self.backup_path)  
+            count_frames += self.__send_files(self.backup_path)
         return count_frames
-    
+
     def __send_files(self, path):
         """Sends all files within one directory.
         @param path: path in file system
@@ -176,40 +174,40 @@ class BayEOSSender(object):
         except OSError as err:
             sys.stderr.write('OSError: ' + str(err))
             return 0
-        
+
         files = glob('*.rd')
         if len(files) == 0:
             return 0
-        
+
         count_frames = 0
-        i=0
-        while i<len(files):
-            count=self.__send_file(files[i], path)
-            if(count):
-                i+=1
-                count_frames +=count
+        i = 0
+        while i < len(files):
+            count = self.__send_file(files[i], path)
+            if count:
+                i += 1
+                count_frames += count
             else:
                 break
 
         # on post error we did not run to the end
         # move files to backup_path
-        if self.backup_path and path!=self.backup_path:
-            while i<len(files):
+        if self.backup_path and path != self.backup_path:
+            while i < len(files):
                 try:
-                    rename(files[i],self.backup_path + '/' + files[i])
+                    rename(files[i], self.backup_path + '/' + files[i])
                 except OSError as err:
                     sys.stderr.write('OSError: ' + str(err))
-                i+=1
-        
+                i += 1
+
         return count_frames
 
     def __send_file(self, file_name, path):
         """Reads one file and tries to send its content to the gateway.
         On success the file is deleted or renamed to *.bak ending.
         Always the oldest file is used.
-        @return number of successfully posted frames in one file     
+        @return number of successfully posted frames in one file
         """
-        chdir(path)     
+        chdir(path)
         current_file = open(file_name, 'rb')  # opens oldest file
         post_request = '&sender=' + urllib.quote_plus(self.name)
         frames = ''
@@ -224,28 +222,27 @@ class BayEOSSender(object):
                 if self.absolute_time:  # Timestamp Frame
                     # millisecond resolution from 1970-01-01
                     wrapper_frame = BayEOSFrame.factory(0xc)
-                    
+
                 else:  # Delayed Frame
                     wrapper_frame = BayEOSFrame.factory(0x7)
-                wrapper_frame.create(frame, timestamp)             
+                wrapper_frame.create(frame, timestamp)
                 frames += '&bayeosframes[]=' + base64.urlsafe_b64encode(wrapper_frame.frame)
             timestamp = current_file.read(8)
         current_file.close()
-        
+
         backup_file_name = file_name.replace('.rd', '.bak')
         if self.backup_path:
             backup_file_name = self.backup_path + '/' + backup_file_name
 
         if frames:  # content found for post request
-                                
             post_result = self.__post(post_request + frames)
-            if post_result == 1: # successfuly posted
+            if post_result == 1:  # successfuly posted
                 if self.remove:
                     os.remove(file_name)
                 else:
                     rename(file_name, backup_file_name)
                 return count_frames
-            return 0 # post failure
+            return 0  # post failure
         else:  # empty or broken file
             if os.stat(file_name).st_size:
                 rename(file_name, backup_file_name)
@@ -363,7 +360,7 @@ class BayEOSGatewayClient(object):
                 return default
             return self.options[key][self.name]
         return self.options[key]
-    
+
     def __start_writer(self, path):
         self.init_writer()
         self.writer = BayEOSWriter(path, self.__get_option('max_chunk'),
@@ -375,7 +372,7 @@ class BayEOSGatewayClient(object):
             if data:
                 self.save_data(data)
             sleep(self.__get_option('writer_sleep_time'))
-            
+
     def __start_sender(self, path):
         self.sender = BayEOSSender(path,
                                    self.__get_option('sender'),
@@ -388,7 +385,7 @@ class BayEOSGatewayClient(object):
         while True:
             self.sender.send()
             sleep(self.__get_option('sender_sleep_time'))
-            
+
     def __start_sender_writer_pair(self, path, thread=True, interlaced=False):
         if interlaced:
             self.init_writer()
@@ -414,17 +411,17 @@ class BayEOSGatewayClient(object):
             Thread(target=self.__start_sender, args=(path,)).start()
         else:
             Process(target=self.__start_sender, args=(path,)).start()
-        self.__start_writer(path)        
-                
+        self.__start_writer(path)
+
     def run(self, pair=True, thread=True, interlaced=False):
         """Runs the BayEOSGatewayClient.
         Creates an own process for an instance of BayEOSWriter and BayEOSSender per device name.
         @param pair: when False writer and sender are working in different processes, other parameters will be ignored
         @param thread: when True sender runs in a thread
-        @param interlaced: when True writer and sender are in a single loop        
+        @param interlaced: when True writer and sender are in a single loop
         """
         print 'Parent pid is ' + str(os.getpid())
-        for each_name in self.names:            
+        for each_name in self.names:
             self.name = each_name  # will be forked and then overwritten
             path = self.__init_folder(each_name)
             if not pair:
@@ -432,7 +429,7 @@ class BayEOSGatewayClient(object):
                 Process(target=self.__start_writer, args=(path,)).start()
             else:
                 Process(target=self.__start_sender_writer_pair, args=(path, thread, interlaced)).start()
-        
+
     @abstractmethod
     def init_writer(self):
         """Method called by run(). Can be overwritten by implementation."""
@@ -444,7 +441,7 @@ class BayEOSGatewayClient(object):
         exit("No read data method found. Method has to be implemented.")
 
     def save_data(self, *args):
-        """Method called by run(). 
+        """Method called by run().
         Can be overwritten by implementation (e.g. to store message frames).
         @param *args: list of arguments for writer's save methods
         """
