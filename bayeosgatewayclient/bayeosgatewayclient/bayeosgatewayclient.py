@@ -43,13 +43,12 @@ class BayEOSWriter(object):
             except OSError as err:
                 exit('OSError: ' + str(err) + ' Could not create dir.')
         chdir(self.path)
-        files = glob('*')
+        files = glob('*.act')
         for each_file in files:
-            if string.find(each_file, '.act'):  # Rename old active file
-                try:
-                    rename(each_file, each_file.replace('.act', '.rd'))
-                except OSError as err:
-                    print 'OSError: ' + str(err)
+            try:
+                rename(each_file, each_file.replace('.act', '.rd'))
+            except OSError as err:
+                print 'OSError: ' + str(err)
         self.__start_new_file()
 
     def __save_frame(self, frame, timestamp=0):

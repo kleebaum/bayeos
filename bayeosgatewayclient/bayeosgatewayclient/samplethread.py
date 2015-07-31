@@ -2,16 +2,16 @@
 
 from time import sleep
 from bayeosgatewayclient import BayEOSWriter, BayEOSSender
-from thread import start_new_thread
 
 PATH = '/tmp/bayeos-device/'
 NAME = 'Python-Thread-Example2'
 URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+
 writer = BayEOSWriter(PATH,max_time=10)
 writer.save_msg('Writer was started.')
-sender = BayEOSSender(PATH, NAME, URL)
 
-start_new_thread(sender.run, (5,))
+sender = BayEOSSender(PATH, NAME, URL)
+sender.start()
 
 while True:
     print 'adding frame'
