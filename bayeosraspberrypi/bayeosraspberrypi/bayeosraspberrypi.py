@@ -1,6 +1,6 @@
 """Python script to measure temperature, humidity and CO2 concentration with a Raspberry Pi.
 A SHT21 sensor and a MCP3424 analog digital converter are connected to gpio pins, i.e. to the I2C bus.
-One BayEOSWriter and BayEOSSender objects are instantiated to transfer data to the BayEOSGateway.
+One BayEOSWriter and one BayEOSSender object is instantiated to transfer data to the BayEOSGateway.
 The sender runs in a separate thread. Origin frames are sent to distinguish CO2 chambers."""
 import sys, numpy  # apt-get install python-numpy
 from scipy import stats  # apt-get install python-scipy
