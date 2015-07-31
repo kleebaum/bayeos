@@ -1,6 +1,6 @@
 """bayeosgatewayclient"""
 import os, string, urllib, urllib2, base64, re, sys
-from posix import chdir, rename
+from os import chdir, rename
 from tempfile import gettempdir
 from struct import pack, unpack
 from _socket import gethostname
