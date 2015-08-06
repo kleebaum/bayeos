@@ -8,23 +8,27 @@ args = bayeos_argparser('Measures time delay between two frames.')
 
 WRITER_SLEEP = float(args.writer_sleep)
 MAX_CHUNK = args.max_chunk
-NAME = args.name
+SENDER_SLEEP = WRITER_SLEEP * float(MAX_CHUNK/20)
+
+NAME = args.name + '-WS' + str(WRITER_SLEEP) + '-M' + str(MAX_CHUNK)
 PATH = args.path + '/' + NAME + '/'
+if args.url:
+    URL = args.url
+else:
+    URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 
 print 'name to appear in Gateway is', NAME
 print 'max-chunk is', MAX_CHUNK, 'byte'
 print 'writer sleep time is', WRITER_SLEEP, 'sec'
 print 'path to store writer files is', PATH
 
-# URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
-URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 
 # init writer and sender
 writer = BayEOSWriter(PATH, MAX_CHUNK)
 writer.save_msg('Writer was started.')
 
-sender = BayEOSSender(PATH, NAME + '-WS' + str(WRITER_SLEEP) + '-M' + str(MAX_CHUNK), URL, 'import', 'import')
-sender.start(2)
+sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
+sender.start(SENDER_SLEEP)
 
 # start measurement
 today = mktime(strptime(strftime('%Y-%m-%d'), '%Y-%m-%d'))

@@ -43,8 +43,10 @@ def bayeos_argparser(description = ''):
                     help='sender sleep time [seconds]')
     parser.add_argument('-pw', '--password', default=DEFAULTS['bayeosgateway_pw'],
                     help='password to access BayEOS Gateway')
-    parser.add_argument('-u', '--user', default=DEFAULTS['bayeosgateway_user'],
-                    help='user to BayEOS Gateway')    
+    parser.add_argument('-un', '--user', default=DEFAULTS['bayeosgateway_user'],
+                    help='user name to BayEOS Gateway')
+    parser.add_argument('-u', '--url', default='',
+                    help='URL to access BayEOS Gateway')
 
     return parser.parse_args()
 
