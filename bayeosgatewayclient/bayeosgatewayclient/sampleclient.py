@@ -7,7 +7,7 @@ OPTIONS = {'bayeosgateway_url' : 'http://bayconf.bayceer.uni-bayreuth.de/gateway
            'bayeosgateway_password' : 'import',
            'bayeosgateway_user' : 'import',
            'max_chunk' : 300,
-           'writer_sleep_time' : 5,
+           'writer_sleep_time' : 1,
            'sender' : 'sender',
            'backup_path' : '/tmp/backup_client/'}
 

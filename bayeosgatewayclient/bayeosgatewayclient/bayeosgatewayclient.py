@@ -10,6 +10,9 @@ from bayeosframe import BayEOSFrame
 from abc import abstractmethod
 from multiprocessing import Process
 from threading import Thread
+import subprocess
+from thread import start_new_thread
+import argparse
 
 DEFAULTS = {'path' : gettempdir(),
             'writer_sleep_time' : 5,
@@ -24,6 +27,26 @@ DEFAULTS = {'path' : gettempdir(),
             'remove' : True,
             'sleep_between_children' : 0,
             'backup_path' : None}
+
+def bayeos_argparser(description = ''):
+    """Parses command line arguments useful for this package."""
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-n', '--name', default='BayEOS-Device',
+                    help='name to appear in Gateway')
+    parser.add_argument('-p', '--path', default=DEFAULTS['path'],
+                    help='path to store writer files before they are sent')
+    parser.add_argument('-m', '--max-chunk', default=DEFAULTS['max_chunk'],
+                    help='maximal file size [bytes] before a new file is started')
+    parser.add_argument('-ws', '--writer-sleep', default=DEFAULTS['writer_sleep_time'],
+                    help='writer sleep time [seconds]')
+    parser.add_argument('-ss', '--sender-sleep', default=DEFAULTS['sender_sleep_time'],
+                    help='sender sleep time [seconds]')
+    parser.add_argument('-pw', '--password', default=DEFAULTS['bayeosgateway_pw'],
+                    help='password to access BayEOS Gateway')
+    parser.add_argument('-u', '--user', default=DEFAULTS['bayeosgateway_user'],
+                    help='user to BayEOS Gateway')    
+
+    return parser.parse_args()
 
 class BayEOSWriter(object):
     """Writes BayEOSFrames to file."""
@@ -284,12 +307,12 @@ class BayEOSSender(object):
             if res > 0:
                 print 'Successfully sent ' + str(res) + ' frames.'
             sleep(sleep_sec)
-            
+
     def start(self, sleep_sec=DEFAULTS['sender_sleep_time']):
         """Starts a thread to run the sender in background
         @param sleep_sec: specifies the sleep time
         """
-        Thread(target=self.run, args=(sleep_sec,)).start()
+        start_new_thread(self.run, (sleep_sec,))
 
 class BayEOSGatewayClient(object):
     """Combines writer and sender for every device."""
@@ -415,6 +438,7 @@ class BayEOSGatewayClient(object):
         if thread:
             Thread(target=self.__start_sender, args=(path,)).start()
         else:
+            # subprocess.Popen(self.__start_sender(path))
             Process(target=self.__start_sender, args=(path,)).start()
         self.__start_writer(path)
 
@@ -433,6 +457,7 @@ class BayEOSGatewayClient(object):
                 Process(target=self.__start_sender, args=(path,)).start()
                 Process(target=self.__start_writer, args=(path,)).start()
             else:
+                # subprocess.Popen(self.__start_sender_writer_pair(path, thread, interlaced))
                 Process(target=self.__start_sender_writer_pair, args=(path, thread, interlaced)).start()
 
     @abstractmethod

@@ -1,20 +1,38 @@
 """Script to test the time delay during writing."""
 
 from time import time, sleep, strptime, strftime, mktime
-from bayeosgatewayclient import BayEOSWriter, BayEOSSender
-from thread import start_new_thread
+from bayeosgatewayclient import BayEOSWriter, BayEOSSender, bayeos_argparser
+# Fetch input arguments
 
-PATH = '/tmp/bayeos-device2/'
-URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
-writer = BayEOSWriter(PATH, 50)
+args = bayeos_argparser('Measures time delay between two frames.')
+
+WRITER_SLEEP = args.writer_sleep
+MAX_CHUNK = args.max_chunk
+NAME = args.name
+PATH = args.path
+
+print 'name to appear in Gateway is', NAME
+print 'max-chunk is', MAX_CHUNK, 'byte'
+print 'writer sleep time is', WRITER_SLEEP, 'sec'
+print 'path to store writer files is', PATH
+
+# URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix'
+URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
+
+# init writer and sender
+writer = BayEOSWriter(PATH, MAX_CHUNK)
 writer.save_msg('Writer was started.')
 
-sender = BayEOSSender(PATH, 'Python-Writer-Test-Anja', URL, 'import', 'import')
-start_new_thread(sender.run, (5,))
+sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
+sender.start(5)
 
-today=mktime(strptime(strftime('%Y-%m-%d'),'%Y-%m-%d'))
-start=time()
-while True:
-    t=time()
-    writer.save([t-start, t-today], value_type=0x21)
-    sleep(1)
+# start measurement
+today = mktime(strptime(strftime('%Y-%m-%d'), '%Y-%m-%d'))
+start = time()
+t_run = time() - start
+
+while t_run <= 1000:
+    t = time()
+    t_run = t - start
+    writer.save([t_run, t - today], value_type=0x21)
+    sleep(WRITER_SLEEP)
