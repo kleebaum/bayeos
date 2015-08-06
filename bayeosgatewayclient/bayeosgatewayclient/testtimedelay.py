@@ -6,10 +6,10 @@ from bayeosgatewayclient import BayEOSWriter, BayEOSSender, bayeos_argparser
 
 args = bayeos_argparser('Measures time delay between two frames.')
 
-WRITER_SLEEP = args.writer_sleep
+WRITER_SLEEP = float(args.writer_sleep)
 MAX_CHUNK = args.max_chunk
 NAME = args.name
-PATH = args.path
+PATH = args.path + '/' + NAME + '/'
 
 print 'name to appear in Gateway is', NAME
 print 'max-chunk is', MAX_CHUNK, 'byte'
@@ -23,8 +23,8 @@ URL = 'http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveFlat'
 writer = BayEOSWriter(PATH, MAX_CHUNK)
 writer.save_msg('Writer was started.')
 
-sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
-sender.start(5)
+sender = BayEOSSender(PATH, NAME + '-WS' + str(WRITER_SLEEP) + '-M' + str(MAX_CHUNK), URL, 'import', 'import')
+sender.start(2)
 
 # start measurement
 today = mktime(strptime(strftime('%Y-%m-%d'), '%Y-%m-%d'))
