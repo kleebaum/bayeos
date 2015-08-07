@@ -7,7 +7,7 @@ from bayeosgatewayclient import BayEOSWriter, BayEOSSender, bayeos_argparser
 args = bayeos_argparser('Measures time delay between two frames.')
 
 WRITER_SLEEP = float(args.writer_sleep)
-MAX_CHUNK = args.max_chunk
+MAX_CHUNK = float(args.max_chunk)
 SENDER_SLEEP = WRITER_SLEEP * float(MAX_CHUNK/20)
 
 NAME = args.name + '-WS' + str(WRITER_SLEEP) + '-M' + str(MAX_CHUNK)
@@ -34,9 +34,11 @@ sender.start(SENDER_SLEEP)
 today = mktime(strptime(strftime('%Y-%m-%d'), '%Y-%m-%d'))
 start = time()
 t_run = time() - start
+print str(time() - today)
+print today
 
-while t_run <= 1000:
-    t = time()
-    t_run = t - start
-    writer.save([t_run, t - today], value_type=0x21)
-    sleep(WRITER_SLEEP)
+# while t_run <= 1000:
+#     t = time()
+#     t_run = t - start
+#     writer.save([t_run, t - today], value_type=0x21)
+#     sleep(WRITER_SLEEP)
