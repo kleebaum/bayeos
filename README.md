@@ -1,4 +1,4 @@
-# Python Packages for BayEOS Gateway Clients
+# Python Packages for BayEOS
 
 ## bayeosgatewayclient
 A generic python package to access a BayEOS Gateway. Runs on Python2 and Python3.
