@@ -113,6 +113,31 @@ class DataFrame(BayEOSFrame):
                 frame += pack(val_format, each_value)
         self.frame += frame
 
+    def create_by_value_type(self, values=(), value_type=0x1, offset=0):
+        """Creates a BayEOS Data Frame.
+        @param values: list, tuple or a dictionary with channel number keys
+        @param value_type: type of values (1..4)
+        @param offset: channel offset (if values are of type list or tuple)
+        """
+        if value_type not in [0x1,0x2,0x3,0x4]:
+            raise ValueError('Invalid value type argument.')
+        if type(values) is dict:
+            frame = pack('<b',0x40 + value_type)
+            for k, v in values.items():
+                frame += pack('<b',k)
+                frame += pack(DATA_TYPES[value_type]['format'],v)
+        elif type(values) is list or type(values) is tuple:
+            if offset > 0:
+                frame = pack('<b',value_type)
+                frame += pack('<b',offset)
+            else:
+                frame = pack('<b',0x20 + value_type)
+            for v in values:
+                frame += pack(DATA_TYPES[value_type]['format'],v)
+        else:
+            raise ValueError('Invalid argument type:' + type(values))
+        self.frame += frame
+
     def parse(self):
         """Parses a binary coded BayEOS Data Frame into a Python dictionary.
         @return tuples of channel indices and values
