@@ -28,7 +28,6 @@ writer = BayEOSWriter(PATH, MAX_CHUNK)
 writer.save_msg('Writer was started.')
 
 sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
-sender.start(SENDER_SLEEP)
 
 # start measurement
 today = mktime(strptime(strftime('%Y-%m-%d'), '%Y-%m-%d'))
@@ -40,3 +39,11 @@ while t_run <= 1000:
     t_run = t - start
     writer.save([t_run, t - today], value_type=0x21)
     sleep(WRITER_SLEEP)
+
+# start sender
+while True:
+    res = sender.send()
+    if res > 0:
+        print 'Successfully sent ' + str(res) + ' frames.\n'
+        break
+    sleep(0.01)

@@ -2,8 +2,6 @@
 
 from time import time, sleep, strptime, strftime, mktime
 from bayeosgatewayclient import BayEOSWriter, BayEOSSender, bayeos_argparser
-from os import getpid
-from multiprocessing import Process
 # Fetch input arguments
 
 args = bayeos_argparser('Measures time delay between two frames.')
@@ -24,21 +22,13 @@ print 'max-chunk is', MAX_CHUNK, 'byte'
 print 'writer sleep time is', WRITER_SLEEP, 'sec'
 print 'path to store writer files is', PATH
 
+
 # init writer and sender
 writer = BayEOSWriter(PATH, MAX_CHUNK)
 writer.save_msg('Writer was started.')
 
-def start_sender():
-    sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
-    print 'Started sender for ' + NAME + ' with pid ' + str(getpid())
-    while True:
-        res = sender.send()
-        if res > 0:
-            print 'Successfully sent ' + str(res) + ' frames.\n'
-        sleep(0.01)
-
-proc = Process(target=start_sender)
-proc.start()
+sender = BayEOSSender(PATH, NAME, URL, 'import', 'import')
+sender.start(SENDER_SLEEP)
 
 # start measurement
 today = mktime(strptime(strftime('%Y-%m-%d'), '%Y-%m-%d'))
@@ -51,4 +41,4 @@ while t_run <= 1000:
     writer.save([t_run, t - today], value_type=0x21)
     sleep(WRITER_SLEEP)
 
-proc.shutdown()
+sleep(20)
