@@ -1,8 +1,8 @@
 #!/bin/sh
 
-NAME="Delay-Test-process-ultrabook"
+NAME="Delay-Test-process-rasp"
 URL="http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix"
-PATHW="/home/anja/tmp"
+PATHW="/home/pi/tests"
 
 for m in 20 40 80 160 320 640 1280 2560
 do
@@ -14,9 +14,9 @@ do
     python2.7 testtimedelay_process.py -m 20 -ws $ws -n $NAME -u $URL -p $PATHW
 done
 
-NAME="Delay-Test-thread-ultrabook"
+NAME="Delay-Test-thread-rasp"
 URL="http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix"
-PATHW="/home/anja/tmp"
+PATHW="/home/pi/tests"
 
 for m in 20 40 80 160 320 640 1280 2560
 do
@@ -28,9 +28,9 @@ do
     python2.7 testtimedelay_thread.py -m 20 -ws $ws -n $NAME -u $URL -p $PATHW
 done
 
-NAME="Delay-Test-serial-ultrabook"
+NAME="Delay-Test-serial-rasp"
 URL="http://bayconf.bayceer.uni-bayreuth.de/gateway/frame/saveMatrix"
-PATHW="/home/anja/tmp"
+PATHW="/home/pi/tests"
 
 for m in 20 40 80 160 320 640 1280 2560
 do
@@ -41,4 +41,3 @@ for ws in 1.0 0.5 0.25 0.125 0.1 0.0625 0.05 0.01
 do
     python2.7 testtimedelay_serial.py -m 20 -ws $ws -n $NAME -u $URL -p $PATHW
 done
-#python2.7 testtimedelay_thread.py -m 20 -ws 0.0 -n $NAME

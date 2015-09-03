@@ -1,4 +1,5 @@
 # plots delay test results as points for PHP implementation
+# depends on php-delay-test.r
 library('zoo')
 library('plotrix')
 
@@ -7,7 +8,7 @@ plot_height = 8
 
 tmp = ''#-tmp'
 eval_max_chunk = F
-i_max = 8
+i_max = 8 # number of writer sleep times (9) / max chunk sizes (8)
 ws = c('1.0', '0.5', '0.25', '0.125', '0.1', '0.0625', '0.05', '0.01', '0.0') # writer sleep time
 mc = c('20.0', '40.0', '80.0', '160.0', '320.0', '640.0', '1280.0', '2560.0') # max chunk
 

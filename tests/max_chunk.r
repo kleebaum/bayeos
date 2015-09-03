@@ -1,13 +1,15 @@
 # compares runtime delays for different maximum file chunk sizes
+# depends on delay-test.r and php-delay-test.r
 library('zoo')
 library('plotrix')
+library('xtable')
 
 colors = c('#b2182b', '#d73027', '#f46d43', '#fdae61', '#fee090', '#ffffbf',
            '#e0f3f8', '#abd9e9', '#4575b4', '#313695')
 plot_width = 6.3
 plot_height = 3.4
 
-d = 2 # device
+d = 1 # device [1:Raspberry Pi, 2:btrzx3, 3:btrzx5, 4:Ultrabook]
 
 i_max = 8 # number of maximum chunk sizes on x axes
 ws = c('1.0') # writer sleep time
@@ -65,7 +67,7 @@ median_thread_tmp_mc = c()
 median_php_mc = c()
 median_tmp_php_mc = c()
 
-for (j in c(1:i)) {
+for (j in c(1:i_max)) {
     mean_wo_mc[j] = mean(delta_wo_mc[[j]])
     mean_wo_tmp_mc[j] = mean(delta_wo_tmp_mc[[j]])
     mean_process_mc[j] = mean(delta_process_mc[[j]])
@@ -232,5 +234,177 @@ legend("topright", horiz=F, x.intersp=0, y.intersp = 1, inset=c(0,0),
     legend = c('Process Home Dir', 'Thread Home Dir', 'Writer Only Home Dir'), 
     lwd=2, pch = c(16, 8, 22),
     col=c(colors[1], colors[3], colors[10]))
+par(op)
+dev.off()
+
+####--- calculate median differences ---####
+median_diff_python = c()
+sum_median_diff_python = 0
+for (i in c(1:i_max)) {
+    median_diff_python[i] = median(delta_wo_mc[[i]]) - median(delta_wo_tmp_mc[[i]])
+}
+mean(median_diff_python)*1000
+sd(median_diff_python)*1000
+median(median_diff_python)*1000
+
+
+median_diff_php = c()
+for (i in c(1:i_max)) {
+    median_diff_php[i] = median(delta_php_mc[[i]]) - median(delta_tmp_php_mc[[i]])
+}
+mean(median_diff_php)*1000
+median(median_diff_php)*1000
+
+
+median_diff_php_python_home = c()
+for (i in c(1:i_max)) {
+    median_diff_php_python_home[i] = median(delta_php_mc[[i]]) - median(delta_wo_mc[[i]])
+}
+median(median_diff_php_python_home)*1000
+
+
+median_diff_php_python_ram = c()
+for (i in c(1:i_max)) {
+    median_diff_php_python_ram[i] = median(delta_tmp_php_mc[[i]]) - median(delta_wo_tmp_mc[[i]])
+}
+median(median_diff_php_python_ram)*1000
+
+median_diff_python_thread = c()
+for (i in c(1:i_max)) {
+    median_diff_python_thread[i] = median(delta_thread_tmp_mc[[i]]) - median(delta_thread_mc[[i]])
+}
+median(median_diff_python_thread)*1000
+
+median_diff_python_process = c()
+for (i in c(1:i_max)) {
+    median_diff_python_process[i] = median(delta_process_mc[[i]]) - median(delta_process_tmp_mc[[i]])
+}
+median(median_diff_python_process)*1000
+
+median_diff_python_process_thread_ram = c()
+for (i in c(1:i_max)) {
+    median_diff_python_process_thread_ram[i] = median(delta_thread_tmp_mc[[i]]) - median(delta_process_tmp_mc[[i]])
+}
+median(median_diff_python_process_thread_ram)*1000
+
+median_diff_python_process_thread_home = c()
+for (i in c(1:i_max)) {
+    median_diff_python_process_thread_home[i] = median(delta_thread_mc[[i]]) - median(delta_process_mc[[i]])
+}
+median(median_diff_python_process_thread_home)*1000
+
+median_diff_python_process_wo_ram = c()
+for (i in c(1:i_max)) {
+    median_diff_python_process_wo_ram[i] = median(delta_wo_tmp_mc[[i]]) - median(delta_process_tmp_mc[[i]])
+}
+median(median_diff_python_process_wo_ram)*1000
+
+median_diff_python_process_wo_home = c()
+for (i in c(1:i_max)) {
+    median_diff_python_process_wo_home[i] = median(delta_wo_mc[[i]]) - median(delta_process_mc[[i]])
+}
+median(median_diff_python_process_wo_home)*1000
+
+# ####--- table output ---####
+table_mc <- data.frame( 'Machine' = character(),
+                        'Sender mode' = character(),
+                        'Lang.' = character(),
+                        'Path' = character(), 
+                        'MC [Byte]' = double(), 
+                        'Median [ms]'= double(), 
+                        'Mean [ms]'= double(),  
+                        'Min [ms]'= double(),  
+                        'Max [ms]'= double(),  
+                        'SD [ms]' = double())
+
+for (i in c(1:i_max)) {
+    if(d==1)
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[1], 'PHP', 'RAM', 20*2^(i-1),
+                    round(median(delta_tmp_php_mc[[i]])*1000,2), 
+                    round(mean(delta_tmp_php_mc[[i]])*1000,2),
+                    round(min(delta_tmp_php_mc[[i]])*1000,2),
+                    round(max(delta_tmp_php_mc[[i]])*1000,2),
+                    round(sd(delta_tmp_php_mc[[i]])*1000,2)))
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[1], 'Python', 'RAM', 20*2^(i-1),
+                    round(median(delta_wo_tmp_mc[[i]])*1000,2), 
+                    round(mean(delta_wo_tmp_mc[[i]])*1000,2),
+                    round(min(delta_wo_tmp_mc[[i]])*1000,2),
+                    round(max(delta_wo_tmp_mc[[i]])*1000,2),
+                    round(sd(delta_wo_tmp_mc[[i]])*1000,2)))
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[2], 'Python', 'RAM', 20*2^(i-1),
+                    round(median(delta_process_tmp_mc[[i]])*1000,2), 
+                    round(mean(delta_process_tmp_mc[[i]])*1000,2),
+                    round(min(delta_process_tmp_mc[[i]])*1000,2),
+                    round(max(delta_process_tmp_mc[[i]])*1000,2),
+                    round(sd(delta_process_tmp_mc[[i]])*1000,2)))
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[3], 'Python', 'RAM', 20*2^(i-1),
+                    round(median(delta_thread_tmp_mc[[i]])*1000,2), 
+                    round(mean(delta_thread_tmp_mc[[i]])*1000,2),
+                    round(min(delta_thread_tmp_mc[[i]])*1000,2),
+                    round(max(delta_thread_tmp_mc[[i]])*1000,2),
+                    round(sd(delta_thread_tmp_mc[[i]])*1000,2)))
+    if(d==1)
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[1], 'PHP', 'Home Dir', 20*2^(i-1),
+                    round(median(delta_php_mc[[i]])*1000,2), 
+                    round(mean(delta_php_mc[[i]])*1000,2),
+                    round(min(delta_php_mc[[i]])*1000,2),
+                    round(max(delta_php_mc[[i]])*1000,2),
+                    round(sd(delta_php_mc[[i]])*1000,2)))
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[1], 'Python', 'Home Dir', 20*2^(i-1),
+                    round(median(delta_wo_mc[[i]])*1000,2), 
+                    round(mean(delta_wo_mc[[i]])*1000,2),
+                    round(min(delta_wo_mc[[i]])*1000,2),
+                    round(max(delta_wo_mc[[i]])*1000,2),
+                    round(sd(delta_wo_mc[[i]])*1000,2)))
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[2], 'Python', 'Home Dir', 20*2^(i-1),
+                    round(median(delta_process_mc[[i]])*1000,2), 
+                    round(mean(delta_process_mc[[i]])*1000,2),
+                    round(min(delta_process_mc[[i]])*1000,2),
+                    round(max(delta_process_mc[[i]])*1000,2),
+                    round(sd(delta_process_mc[[i]])*1000,2)))
+    table_mc = rbind(table_mc, cbind(devices[d], sender_modes_long[3], 'Python', 'Home Dir', 20*2^(i-1),
+                    round(median(delta_thread_mc[[i]])*1000,2), 
+                    round(mean(delta_thread_mc[[i]])*1000,2),
+                    round(min(delta_thread_mc[[i]])*1000,2),
+                    round(max(delta_thread_mc[[i]])*1000,2),
+                    round(sd(delta_thread_mc[[i]])*1000,2)))
+}
+
+colnames(table_mc) <- c('Machine', 'Sender mode', 'Lang.', 'Path', 'MC [Byte]', 'Median [ms]', 
+                             'Mean [ms]', 'Min [ms]', 'Max [ms]', 'SD [ms]')
+
+print(xtable(table_mc), include.rownames=F)
+
+####--- histogram ---####
+pdf(paste(devices[d], 'histograms.pdf', sep='_'), width=plot_width, height=4)
+op = par(mfrow=c(2,2),mar=c(3.5,3.2,1.8,0.5), oma=c(0,0,0,0))
+hist(delta_wo_tmp_mc[[1]], main='max chunk: 20 byte - RAM', xlab='', ylab='', breaks=20)
+title(ylab='Frequency', mgp=c(2.3,1,0))
+hist(delta_wo_mc[[1]], main='max chunk: 20 byte - Home Dir', xlab='', ylab='', breaks=20)
+hist(delta_wo_tmp_mc[[8]], main='max chunk: 2560 byte - RAM', xlab='', ylab='', breaks=20)
+title(ylab='Frequency', xlab=expression(paste(Delta, 't [ms]')), mgp=c(2.3,1,0))
+hist(delta_wo_mc[[8]], main='max chunk: 2560 byte - Home Dir', xlab='', ylab='', breaks=20)
+title(xlab=expression(paste(Delta, 't [ms]')), mgp=c(2.3,1,0))
+par(op)
+dev.off()
+
+####--- quantile-quantile plot ---####
+pdf(paste(devices[d], 'qqplots.pdf', sep='_'), width=plot_width, height=4)
+op = par(mfrow=c(2,2),mar=c(3.5,3.2,1.8,0.5), oma=c(0,0,0,0))
+qqnorm(delta_wo_tmp_mc[[1]], main='max chunk: 20 byte - RAM', xlab='', ylab='',
+        col="#555555", cex=0.8)
+title(ylab='Sample Quantiles', mgp=c(2.3,1,0))
+qqline(delta_wo_tmp_mc[[1]])
+qqnorm(delta_wo_mc[[1]], main='max chunk: 20 byte - Home Dir', xlab='', ylab='',
+        col="#555555", cex=0.8)
+qqline(delta_wo_mc[[1]])
+qqnorm(delta_wo_tmp_mc[[8]], main='max chunk: 2560 byte - RAM', xlab='', ylab='',
+        col="#555555", cex=0.8)
+title(ylab='Sample Quantiles', xlab='Theoretical Quantiles', mgp=c(2.3,1,0))
+qqline(delta_wo_tmp_mc[[8]])
+qqnorm(delta_wo_mc[[8]], main='max chunk: 2560 byte - Home Dir', xlab='', ylab='',
+        col="#555555", cex=0.8)
+title(xlab='Theoretical Quantiles', mgp=c(2.3,1,0))
+qqline(delta_wo_mc[[8]])
 par(op)
 dev.off()

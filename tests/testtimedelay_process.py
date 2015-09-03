@@ -4,8 +4,8 @@ from time import time, sleep, strptime, strftime, mktime
 from bayeosgatewayclient import BayEOSWriter, BayEOSSender, bayeos_argparser
 from os import getpid
 from multiprocessing import Process
-# Fetch input arguments
 
+# Fetch input arguments
 args = bayeos_argparser('Measures time delay between two frames.')
 
 WRITER_SLEEP = float(args.writer_sleep)
@@ -50,5 +50,5 @@ while t_run <= 1000:
     t_run = t - start
     writer.save([t_run, t - today], value_type=0x21)
     sleep(WRITER_SLEEP)
-sleep(20)
+
 proc.terminate()

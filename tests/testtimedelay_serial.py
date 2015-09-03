@@ -2,8 +2,8 @@
 
 from time import time, sleep, strptime, strftime, mktime
 from bayeosgatewayclient import BayEOSWriter, BayEOSSender, bayeos_argparser
-# Fetch input arguments
 
+# Fetch input arguments
 args = bayeos_argparser('Measures time delay between two frames.')
 
 WRITER_SLEEP = float(args.writer_sleep)
@@ -46,4 +46,3 @@ while True:
     if res > 0:
         print 'Successfully sent ' + str(res) + ' frames.\n'
         break
-    sleep(0.01)

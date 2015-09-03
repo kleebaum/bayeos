@@ -1,12 +1,13 @@
 # plots delay test results as points
+# depends on delay-test.r
 library('zoo')
 library('plotrix')
 
-d = 1 # device
+d = 1 # device [1:Raspberry Pi, 2:btrzx3, 3:btrzx5, 4:Ultrabook]
 sm = 3 # sender mode
 fm  = 1 # filesytem mode
 eval_max_chunk = F
-i_max = 8
+i_max = 8 # number of writer sleep times (9) / max chunk sizes (8)
 ws = c('1.0', '0.5', '0.25', '0.125', '0.1', '0.0625', '0.05', '0.01', '0.0') # writer sleep time
 mc = c('20.0', '40.0', '80.0', '160.0', '320.0', '640.0', '1280.0', '2560.0') # max chunk
 
